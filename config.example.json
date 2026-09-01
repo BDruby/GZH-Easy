@@ -1,0 +1,6 @@
+{
+  "apiKey": "",
+  "model": "deepseek-chat",
+  "port": 43121,
+  "baseUrl": "https://api.deepseek.com"
+}

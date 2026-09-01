@@ -1,0 +1,32 @@
+{
+  "name": "gzh-baokuan-studio",
+  "version": "1.0.0",
+  "description": "公众号爆款文章工坊：一句话主题 → 爆款标题 → 成稿 → 公众号排版（基于 creator-buddy gzh-Skills 方法论，零依赖本地服务）",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.11.17",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "vite": "^5.4.10"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

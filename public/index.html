@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公众号爆款文章工坊</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">爆</span>
+      <div>
+        <h1>公众号爆款文章工坊</h1>
+        <p class="brand-sub">一句话主题 → 爆款标题 → 成稿 → 公众号排版 · 方法论来自 creator-buddy gzh-Skills</p>
+      </div>
+    </div>
+    <div class="settings">
+      <input id="apiKey" type="password" class="input api-key" placeholder="DeepSeek API Key（存本地浏览器）" autocomplete="off">
+      <select id="model" class="input model-select">
+        <option value="deepseek-chat">deepseek-chat</option>
+        <option value="deepseek-reasoner">deepseek-reasoner</option>
+      </select>
+      <button id="saveKey" class="btn ghost">保存</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- 0 选题 -->
+  <section class="card topic-card" id="step-topic">
+    <div class="card-head">
+      <span class="step-badge">选题</span>
+      <h2>输入一句主题</h2>
+    </div>
+    <textarea id="topic" class="input topic-input" rows="2" placeholder="例如：DeepSeek 更新了多模态能力，写一篇公众号推文"></textarea>
+    <textarea id="extra" class="input extra-input" rows="2" placeholder="补充说明 / 素材（可选）：目标读者、账号风格、想强调的点、已有的数据或案例…"></textarea>
+    <div class="row options">
+      <label class="opt"><input type="radio" name="mode" value="long" checked> 长文 <small>1500–4000 字</small></label>
+      <label class="opt"><input type="radio" name="mode" value="short"> 短文 <small>≤1000 字</small></label>
+      <label class="opt">字数
+        <select id="words" class="input">
+          <option value="2000">约 2000 字</option>
+          <option value="1500">约 1500 字</option>
+          <option value="3000">约 3000 字</option>
+          <option value="4000">约 4000 字</option>
+          <option value="800">约 800 字（短文）</option>
+          <option value="500">约 500 字（短文）</option>
+        </select>
+      </label>
+      <button id="oneShot" class="btn primary big">⚡ 一键生成全文</button>
+    </div>
+  </section>
+
+  <!-- 1 标题 -->
+  <section class="card" id="step-title">
+    <div class="card-head">
+      <span class="step-badge">1</span>
+      <h2>爆款标题 <small class="muted">· baokuan-title-generator</small></h2>
+      <button id="genTitles" class="btn primary">生成标题</button>
+      <button id="retryTitles" class="btn ghost hidden">换一批</button>
+    </div>
+    <div id="titleLoading" class="loading hidden"><span class="spinner"></span> 正在按 16 种爆款方法生成候选并评分…</div>
+    <div id="titleResult" class="hidden">
+      <div class="brief" id="titleBrief"></div>
+      <h3 class="sub">候选标题矩阵</h3>
+      <div class="table-wrap">
+        <table id="candTable">
+          <thead><tr><th></th><th>候选标题</th><th>方法</th><th>钩子</th><th>评分</th><th>风险</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <h3 class="sub">Top 5 推荐（按用途分角色）</h3>
+      <div id="top5" class="top5"></div>
+      <h3 class="sub">A/B 测试建议</h3>
+      <div id="ab" class="ab"></div>
+    </div>
+  </section>
+
+  <!-- 2 正文 -->
+  <section class="card" id="step-article">
+    <div class="card-head">
+      <span class="step-badge">2</span>
+      <h2>写正文 <small class="muted">· gzh-longform-writer / gzh-short-post</small></h2>
+      <div class="seg" id="routeSeg">
+        <button data-route="breakthrough" class="seg-btn active">破题式（先角度）</button>
+        <button data-route="outline" class="seg-btn">大纲式（观点/教程）</button>
+        <button data-route="short" class="seg-btn">短文</button>
+      </div>
+    </div>
+
+    <div id="angleBlock" class="angle-block hidden">
+      <button id="genAngles" class="btn">先给 5~8 个角度（破题式）</button>
+      <div id="angleList" class="angles hidden"></div>
+      <p class="hint">选择角度后自动开始写作；也可以直接点下方「开始写作」用默认角度。</p>
+    </div>
+
+    <div class="write-bar">
+      <span class="selected-title" id="selTitle">未选标题（写作时默认不传标题）</span>
+      <button id="writeBtn" class="btn primary">开始写作</button>
+      <button id="stopWrite" class="btn danger hidden">停止</button>
+      <button id="copyMd" class="btn ghost hidden">复制 Markdown</button>
+    </div>
+    <div id="writeLoading" class="loading hidden"><span class="spinner"></span> 正在写作（流式输出）…</div>
+    <div id="articleOut" class="article hidden"></div>
+  </section>
+
+  <!-- 3 排版 -->
+  <section class="card" id="step-layout">
+    <div class="card-head">
+      <span class="step-badge">3</span>
+      <h2>公众号排版 <small class="muted">· space-wechat-layout</small></h2>
+      <select id="style" class="input">
+        <option value="auto">风格：智能判断</option>
+        <option value="claude">Claude · 暖白克制编辑感</option>
+        <option value="openai">OpenAI · 黑白灰实用主义</option>
+        <option value="google">Google · 亮白模块卡片</option>
+      </select>
+      <button id="genLayout" class="btn primary">生成排版</button>
+    </div>
+    <div id="layoutLoading" class="loading hidden"><span class="spinner"></span> 正在生成公众号 HTML…</div>
+    <div id="layoutResult" class="hidden">
+      <div class="layout-tools">
+        <button id="copyHtml" class="btn primary">复制 HTML 到公众号</button>
+        <span id="styleUsed" class="muted"></span>
+        <span id="copyStatus" class="copy-status"></span>
+      </div>
+      <div class="phone-wrap">
+        <div class="phone-bar">微信预览 · 677px</div>
+        <div id="preview" class="preview"></div>
+      </div>
+      <p id="layoutTips" class="hint"></p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    方法论改编自 <a href="https://github.com/SpaceZephyr/creator-buddy/tree/main/gzh-Skills" target="_blank" rel="noopener">SpaceZephyr/creator-buddy · gzh-Skills</a>（MIT）· 本应用为本地服务，Key 仅保存在你的浏览器 localStorage
+  </footer>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

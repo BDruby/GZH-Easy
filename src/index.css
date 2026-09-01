@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  body {
+    background-color: #0b0f17;
+    color: #f1f5f9;
+    font-family: var(--font-sans);
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0f17;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Glassmorphism utils */
+.glass-panel {
+  background: rgba(19, 25, 38, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s ease;
+}
+.glass-panel-hover:hover {
+  background: rgba(25, 33, 49, 0.85);
+  border-color: rgba(10, 163, 68, 0.3);
+  box-shadow: 0 0 25px -5px rgba(10, 163, 68, 0.15);
+}
+
+/* Custom typing cursor */
+.typing-cursor::after {
+  content: '▋';
+  display: inline-block;
+  color: #10b981;
+  animation: blink 0.9s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
