@@ -18,58 +18,147 @@ import {
   Sliders,
   CheckCircle2,
   Terminal,
+  Image as ImageIcon,
+  Plus,
+  Cpu,
+  Trash2,
+  Save,
+  Clock,
+  Loader2,
 } from 'lucide-react';
 
 import { BackgroundGrid } from './components/ui/BackgroundGrid.jsx';
 import { SpotlightCard } from './components/ui/SpotlightCard.jsx';
 import { ShimmerButton } from './components/ui/ShimmerButton.jsx';
 import { ApiSettingsModal } from './components/ApiSettingsModal.jsx';
+import { ImagePickerModal } from './components/ImagePickerModal.jsx';
+import { WechatVisualEditor } from './components/WechatEditor/WechatVisualEditor.jsx';
 import { cn } from './lib/utils.js';
+
+const DEFAULT_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+const DRAFT_STORAGE_KEY = 'gzh_draft_v2';
 
 export default function App() {
   // Config state
   const [config, setConfig] = useState(() => ({
     baseUrl: localStorage.getItem('bs_baseUrl') || 'https://api.deepseek.com',
     apiKey: localStorage.getItem('bs_apiKey') || '',
-    model: localStorage.getItem('bs_model') || 'deepseek-chat',
+    model: localStorage.getItem('bs_model') || 'deepseek-v4-flash',
   }));
 
+  // Dynamic models list state
+  const [modelsList, setModelsList] = useState(() => {
+    const saved = localStorage.getItem('bs_models_list');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return DEFAULT_MODELS;
+  });
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWritingImagePickerOpen, setIsWritingImagePickerOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
 
-  // Workflow state
-  const [topic, setTopic] = useState('');
-  const [extra, setExtra] = useState('');
-  const [mode, setMode] = useState('long');
-  const [words, setWords] = useState(2000);
-  const [route, setRoute] = useState('breakthrough');
+  // Workflow state (恢复草稿)
+  const initialDraft = (() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const [topic, setTopic] = useState(initialDraft?.topic || '');
+  const [extra, setExtra] = useState(initialDraft?.extra || '');
+  const [mode, setMode] = useState(initialDraft?.mode || 'long');
+  const [words, setWords] = useState(initialDraft?.words || 2000);
+  const [route, setRoute] = useState(initialDraft?.route || 'breakthrough');
 
   // Step 1: Titles
   const [loadingTitles, setLoadingTitles] = useState(false);
-  const [titlesData, setTitlesData] = useState(null);
-  const [selectedTitle, setSelectedTitle] = useState('');
+  const [titlesProgress, setTitlesProgress] = useState(0);
+  const [titlesStage, setTitlesStage] = useState('');
+  const [titlesData, setTitlesData] = useState(initialDraft?.titlesData || null);
+  const [selectedTitle, setSelectedTitle] = useState(initialDraft?.selectedTitle || '');
 
   // Step 2: Angles & Article
   const [loadingAngles, setLoadingAngles] = useState(false);
-  const [anglesData, setAnglesData] = useState(null);
-  const [selectedAngle, setSelectedAngle] = useState('');
+  const [anglesProgress, setAnglesProgress] = useState(0);
+  const [anglesStage, setAnglesStage] = useState('');
+  const [anglesData, setAnglesData] = useState(initialDraft?.anglesData || null);
+  const [selectedAngle, setSelectedAngle] = useState(initialDraft?.selectedAngle || '');
 
   const [isWriting, setIsWriting] = useState(false);
-  const [articleMd, setArticleMd] = useState('');
+  const [articleMd, setArticleMd] = useState(initialDraft?.articleMd || '');
   const abortControllerRef = useRef(null);
-
-  // Step 3: Layout
-  const [layoutStyle, setLayoutStyle] = useState('auto');
-  const [loadingLayout, setLoadingLayout] = useState(false);
-  const [layoutData, setLayoutData] = useState(null);
-  const [copyStatus, setCopyStatus] = useState('');
 
   // Toast timer
   const toastTimerRef = useRef(null);
-  const showToast = (msg, ms = 3000) => {
-    setToastMsg(msg);
+  const showToast = (msg, ms) => {
+    const isErr = msg && (msg.includes('失败') || msg.includes('错误') || msg.includes('异常') || msg.includes('缺少'));
+    const duration = ms || (isErr ? 8000 : 4500);
+    setToastMsg({ text: msg, isError: isErr });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToastMsg(null), ms);
+    toastTimerRef.current = setTimeout(() => setToastMsg(null), duration);
+  };
+
+  // 1. 防误刷新 / 防离开页面监听 (beforeunload)
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isWriting || topic.trim() || articleMd.trim()) {
+        e.preventDefault();
+        e.returnValue = '当前有正在创作的内容，确定要刷新或离开吗？';
+        return '当前有正在创作的内容，确定要刷新或离开吗？';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isWriting, topic, articleMd]);
+
+  // 2. 自动保存草稿到 LocalStorage
+  useEffect(() => {
+    const draft = {
+      topic,
+      extra,
+      mode,
+      words,
+      route,
+      titlesData,
+      selectedTitle,
+      anglesData,
+      selectedAngle,
+      articleMd,
+      savedAt: Date.now(),
+    };
+    try {
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch {}
+  }, [topic, extra, mode, words, route, titlesData, selectedTitle, anglesData, selectedAngle, articleMd]);
+
+  // 首次检测到恢复草稿提示
+  useEffect(() => {
+    if (initialDraft && (initialDraft.topic || initialDraft.articleMd)) {
+      showToast('💡 已自动为您恢复上次未完成的创作草稿');
+    }
+  }, []);
+
+  // 清空重置草稿
+  const handleResetDraft = () => {
+    if (window.confirm('确定要清空当前所有选题、标题和文章草稿并重新开始吗？')) {
+      setTopic('');
+      setExtra('');
+      setTitlesData(null);
+      setSelectedTitle('');
+      setAnglesData(null);
+      setSelectedAngle('');
+      setArticleMd('');
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      showToast('草稿已清空重置');
+    }
   };
 
   // Sync state to local storage
@@ -78,7 +167,19 @@ export default function App() {
     localStorage.setItem('bs_baseUrl', newCfg.baseUrl);
     localStorage.setItem('bs_apiKey', newCfg.apiKey);
     localStorage.setItem('bs_model', newCfg.model);
-    showToast('API 设置已在本地生效');
+    showToast('API 与模型设置已保存生效');
+  };
+
+  const handleUpdateModelsList = (newModels) => {
+    setModelsList(newModels);
+    localStorage.setItem('bs_models_list', JSON.stringify(newModels));
+  };
+
+  const handleSelectActiveModel = (targetModel) => {
+    const newCfg = { ...config, model: targetModel };
+    setConfig(newCfg);
+    localStorage.setItem('bs_model', targetModel);
+    showToast(`已切换当前模型为: ${targetModel}`);
   };
 
   // Helper API call with safe JSON parsing
@@ -99,49 +200,90 @@ export default function App() {
     try {
       data = JSON.parse(text);
     } catch {
-      data = { error: `服务未返回有效 JSON (HTTP ${res.status})。请确认后端 Node 服务 (node server.mjs) 已启动。` };
+      data = { error: `服务未返回有效 JSON (HTTP ${res.status})。请确认服务正常运行。` };
     }
 
     if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
     return data;
   };
 
-  // Step 1: Generate Titles
+  // Step 1: Generate Titles with Progressive Progress Simulation
   const handleGenTitles = async () => {
     if (!topic.trim()) return showToast('请先输入一句主题');
     setLoadingTitles(true);
-    setTitlesData(null);
+    setTitlesProgress(10);
+    setTitlesStage('🔍 正在解析核心主题、提炼受众画像与记忆爆点...');
+
+    const pTimer = setInterval(() => {
+      setTitlesProgress((prev) => {
+        if (prev < 35) {
+          setTitlesStage('🧠 匹配 16 种爆款标题方法论与心理钩子...');
+          return prev + 8;
+        } else if (prev < 70) {
+          setTitlesStage('📊 评估点击率潜力与安全合规风险...');
+          return prev + 5;
+        } else if (prev < 92) {
+          setTitlesStage('✨ 构建 Top 5 角色推荐卡与 A/B 矩阵...');
+          return prev + 2;
+        }
+        return prev;
+      });
+    }, 400);
+
     try {
       const data = await apiCall('/api/titles', { topic: topic.trim(), count: 10 });
+      clearInterval(pTimer);
+      setTitlesProgress(100);
+      setTitlesStage('🎉 标题矩阵生成成功！');
       setTitlesData(data);
       if (data.top5 && data.top5[0]) {
         setSelectedTitle(data.top5[0].title);
       }
-      showToast('爆款标题矩阵生成成功！');
+      showToast('爆款标题候选矩阵生成成功！');
     } catch (e) {
+      clearInterval(pTimer);
       showToast('标题生成失败: ' + e.message);
-    } fontally: {
-      setLoadingTitles(false);
+    } finally {
+      setTimeout(() => setLoadingTitles(false), 500);
     }
   };
 
-  // Step 2: Generate Angles
+  // Step 2: Generate Angles with Progressive Progress Simulation
   const handleGenAngles = async () => {
     if (!topic.trim()) return showToast('请先输入一句主题');
     setLoadingAngles(true);
-    setAnglesData(null);
+    setAnglesProgress(15);
+    setAnglesStage('🧭 扫描行业全景视角...');
+
+    const aTimer = setInterval(() => {
+      setAnglesProgress((prev) => {
+        if (prev < 50) {
+          setAnglesStage('💡 提炼反直觉、切身、对比与溯源视角...');
+          return prev + 12;
+        } else if (prev < 90) {
+          setAnglesStage('🎯 甄选 5~8 个高辨识度破题切入点...');
+          return prev + 4;
+        }
+        return prev;
+      });
+    }, 300);
+
     try {
       const data = await apiCall('/api/angles', { topic: topic.trim() });
+      clearInterval(aTimer);
+      setAnglesProgress(100);
+      setAnglesStage('✅ 破题角度生成完毕！');
       setAnglesData(data.angles || []);
-      showToast('破题角度生成完毕，请选择写入角度');
+      showToast('破题角度生成完毕，请选择写入视角');
     } catch (e) {
+      clearInterval(aTimer);
       showToast('角度生成失败: ' + e.message);
     } finally {
-      setLoadingAngles(false);
+      setTimeout(() => setLoadingAngles(false), 400);
     }
   };
 
-  // Step 2: Stream Write Article
+  // Step 2: Stream Write Article with Progress Calculation
   const handleWriteArticle = async () => {
     if (!topic.trim()) return showToast('请先输入一句主题');
     setIsWriting(true);
@@ -176,7 +318,7 @@ export default function App() {
         const text = await res.text().catch(() => '');
         let errObj;
         try { errObj = JSON.parse(text); } catch {}
-        throw new Error(errObj?.error || `请求失败 (${res.status})。请确认后端 Node 服务已启动。`);
+        throw new Error(errObj?.error || `请求失败 (${res.status})。请确认后端服务已启动。`);
       }
 
       const reader = res.body.getReader();
@@ -201,7 +343,7 @@ export default function App() {
           } else if (msg.type === 'error') {
             throw new Error(msg.message);
           } else if (msg.type === 'done') {
-            showToast('正文生成完毕！');
+            showToast('🎉 正文生成完毕！已自动同步至下方排版器');
           }
         }
       }
@@ -220,56 +362,12 @@ export default function App() {
     }
   };
 
-  // Step 3: Layout
-  const handleGenLayout = async () => {
-    if (!articleMd.trim()) return showToast('请先生成文章正文');
-    setLoadingLayout(true);
-    setLayoutData(null);
-    try {
-      const data = await apiCall('/api/layout', {
-        article: articleMd.trim(),
-        title: selectedTitle,
-        style: layoutStyle,
-      });
-      setLayoutData(data);
-      showToast('公众号 HTML 排版生成成功！');
-    } catch (e) {
-      showToast('排版失败: ' + e.message);
-    } finally {
-      setLoadingLayout(false);
-    }
-  };
-
-  // Copy HTML
-  const handleCopyHtml = async () => {
-    if (!layoutData?.html) return;
-    const html = layoutData.html;
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([extractText(html)], { type: 'text/plain' }),
-        }),
-      ]);
-      setCopyStatus('✅ 已成功复制富文本 HTML！去公众号直接粘贴即可');
-      showToast('HTML 已复制到剪贴板！');
-    } catch {
-      // Fallback text copy
-      const ta = document.createElement('textarea');
-      ta.value = html;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      setCopyStatus('✅ 已复制 HTML 源码 (兼容模式)');
-      showToast('HTML 源码已复制！');
-    }
-  };
-
-  const extractText = (html) => {
-    const el = document.createElement('div');
-    el.innerHTML = html;
-    return el.innerText || el.textContent || '';
+  // 写作区插入图片
+  const handleInsertWritingImage = (img) => {
+    if (!img?.url) return;
+    const imgMd = `\n\n![${img.title || '配图'}](${img.url})\n\n`;
+    setArticleMd((prev) => (prev ? prev + imgMd : imgMd));
+    showToast(`已插入商用配图: ${img.title}`);
   };
 
   // Simple Markdown renderer
@@ -282,20 +380,36 @@ export default function App() {
       if (line.startsWith('### ')) return <h3 key={index} className="text-base font-semibold text-slate-200 my-2">{line.slice(4)}</h3>;
       if (line.startsWith('> ')) return <blockquote key={index} className="border-l-4 border-emerald-500/60 bg-emerald-950/20 px-4 py-2 my-2 text-slate-300 rounded-r-lg">{line.slice(2)}</blockquote>;
       if (line.startsWith('- ') || line.startsWith('* ')) return <li key={index} className="ml-4 text-slate-300 list-disc">{line.slice(2)}</li>;
+      if (line.startsWith('![')) {
+        const m = line.match(/^!\[(.*?)\]\((.*?)\)$/);
+        if (m) {
+          return (
+            <div key={index} className="my-4 text-center">
+              <img src={m[2]} alt={m[1]} className="max-w-full rounded-xl mx-auto shadow-md" />
+              {m[1] && <p className="text-xs text-slate-500 mt-1">{m[1]}</p>}
+            </div>
+          );
+        }
+      }
       if (line.trim() === '---') return <hr key={index} className="border-slate-800 my-4" />;
       if (!line.trim()) return <br key={index} />;
       return <p key={index} className="my-2 leading-relaxed text-slate-300">{line}</p>;
     });
   };
 
+  // 正文字数统计与进度估算
+  const articleLength = articleMd.length;
+  const targetWords = Number(words) || 2000;
+  const writingPercent = Math.min(100, Math.round((articleLength / (targetWords * 0.9)) * 100));
+
   return (
-    <div className="relative min-h-screen bg-[#0b0f17] text-slate-100 pb-20 selection:bg-emerald-500 selection:text-white">
-      {/* Aceternity Background Grid */}
+    <div className="relative min-h-screen bg-[#0b0f17] text-slate-100 pb-24 selection:bg-emerald-500 selection:text-white">
+      {/* Background Grid */}
       <BackgroundGrid />
 
       {/* Top Header */}
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center font-extrabold text-white text-lg shadow-[0_0_20px_rgba(16,185,129,0.4)]">
@@ -305,20 +419,47 @@ export default function App() {
               <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
                 公众号爆款文章工坊
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  creator-buddy v2.0
+                  creator-buddy v2.5
                 </span>
               </h1>
-              <p className="text-xs text-slate-400 hidden sm:block">一句话主题 → 爆款标题 → 智能写作 → 微信排版</p>
+              <p className="text-xs text-slate-400 hidden sm:block">一句话主题 → 爆款标题 → 智能写作 → 可视化微信排版</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             
-            {/* Active Model Indicator */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-400">模型:</span>
-              <span className="font-mono text-emerald-300">{config.model}</span>
+            {/* Auto-Save Status Pill */}
+            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
+              <Check className="w-3 h-3" />
+              <span>草稿已自动本地保存</span>
+            </div>
+
+            {/* Quick Model Selector & Switcher Chips */}
+            <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span className="text-[11px] text-slate-400 px-2 flex items-center gap-1">
+                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                模型:
+              </span>
+              {modelsList.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => handleSelectActiveModel(m)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all ${
+                    config.model === m
+                      ? 'bg-emerald-500 text-white font-bold shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                title="管理模型"
+                className="p-1 text-slate-500 hover:text-emerald-400"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
             </div>
 
             {/* API Settings Modal Trigger */}
@@ -327,7 +468,7 @@ export default function App() {
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
             >
               <Settings className="w-4 h-4 text-emerald-400" />
-              <span>API 设置</span>
+              <span>设置</span>
             </button>
 
           </div>
@@ -335,9 +476,9 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-8 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 space-y-8 relative z-10">
 
-        {/* Step 0: Topic Input Card (Spotlight) */}
+        {/* Step 0: Topic Input Card */}
         <SpotlightCard className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
@@ -346,14 +487,25 @@ export default function App() {
               </span>
               <h2 className="text-lg font-bold text-white">输入文章核心主题</h2>
             </div>
-            <span className="text-xs text-slate-400">一句话表达需求与干货目标</span>
+            
+            <div className="flex items-center gap-3">
+              {(topic || articleMd || titlesData) && (
+                <button
+                  onClick={handleResetDraft}
+                  className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-800"
+                >
+                  <Trash2 className="w-3 h-3" /> 清空重置
+                </button>
+              )}
+              <span className="text-xs text-slate-400 hidden sm:block">一句话表达需求与干货目标</span>
+            </div>
           </div>
 
           <textarea
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             rows={2}
-            placeholder="例如：DeepSeek 发布新版本，写一篇通俗易懂的公众号科技爆款推文..."
+            placeholder="例如：DeepSeek 推出新一代模型架构，写一篇通俗易懂的公众号爆款深度推文..."
             className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none"
           />
 
@@ -409,6 +561,25 @@ export default function App() {
               {loadingTitles ? '正在生成爆款标题...' : '生成候选标题'}
             </ShimmerButton>
           </div>
+
+          {/* Titles Generation Progress Bar */}
+          {loadingTitles && (
+            <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-emerald-500/30 animate-in fade-in duration-200 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-emerald-400 font-semibold flex items-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {titlesStage || '正在深度生成爆款标题矩阵...'}
+                </span>
+                <span className="font-mono text-emerald-300 font-bold">{titlesProgress}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-300 transition-all duration-300 shadow-[0_0_12px_rgba(16,185,129,0.6)]"
+                  style={{ width: `${titlesProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
         </SpotlightCard>
 
         {/* Step 1: Titles Result */}
@@ -423,9 +594,10 @@ export default function App() {
               </div>
               <button
                 onClick={handleGenTitles}
+                disabled={loadingTitles}
                 className="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1.5 transition-colors"
               >
-                <RefreshCw className="w-3.5 h-3.5" /> 换一批
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingTitles ? 'animate-spin' : ''}`} /> 换一批
               </button>
             </div>
 
@@ -436,44 +608,89 @@ export default function App() {
               </div>
             )}
 
+            {/* Selected Title Highlight Banner */}
+            {selectedTitle && (
+              <div className="mb-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border-2 border-emerald-500/60 flex items-center justify-between gap-4 shadow-[0_0_25px_rgba(16,185,129,0.2)] animate-in fade-in duration-200">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="p-2 rounded-xl bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)] shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="text-[11px] text-emerald-400 font-bold tracking-wider flex items-center gap-1.5">
+                      <span>已选定爆款标题（将作为后续写作与排版的主标题）</span>
+                    </div>
+                    <div className="text-sm font-extrabold text-white mt-0.5 truncate">{selectedTitle}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(selectedTitle); showToast('标题已复制到剪贴板！'); }}
+                  className="px-3.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
+                >
+                  <Copy className="w-3.5 h-3.5" /> 复制标题
+                </button>
+              </div>
+            )}
+
             {/* Candidates Table */}
-            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/50 mb-6">
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60 mb-6 shadow-inner">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800">
+                <thead className="bg-slate-900/90 text-slate-400 border-b border-slate-800">
                   <tr>
-                    <th className="p-3 w-10">#</th>
-                    <th className="p-3">候选标题 (点击选择)</th>
-                    <th className="p-3">方法</th>
-                    <th className="p-3">心理钩子</th>
-                    <th className="p-3">评分</th>
-                    <th className="p-3">违规风险</th>
+                    <th className="p-3.5 w-12 text-center">状态</th>
+                    <th className="p-3.5">候选标题 (点击整行选用)</th>
+                    <th className="p-3.5">方法</th>
+                    <th className="p-3.5">心理钩子</th>
+                    <th className="p-3.5">评分</th>
+                    <th className="p-3.5">违规风险</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
-                  {titlesData.candidates?.map((c, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => { setSelectedTitle(c.title); showToast(`已选择标题: ${c.title}`); }}
-                      className={`cursor-pointer transition-colors ${
-                        selectedTitle === c.title
-                          ? 'bg-emerald-950/30 text-emerald-200 font-medium'
-                          : 'hover:bg-slate-800/40 text-slate-300'
-                      }`}
-                    >
-                      <td className="p-3 text-slate-500">{idx + 1}</td>
-                      <td className="p-3 font-medium text-slate-100 hover:text-emerald-400">{c.title}</td>
-                      <td className="p-3 text-slate-400">{c.method}</td>
-                      <td className="p-3 text-slate-400">{c.hook}</td>
-                      <td className="p-3 font-bold text-emerald-400">{c.score}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] ${
-                          c.risk === '高' ? 'bg-rose-500/20 text-rose-300' : c.risk === '中' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
-                        }`}>
-                          {c.risk || '低'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {titlesData.candidates?.map((c, idx) => {
+                    const isSelected = selectedTitle === c.title;
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => { setSelectedTitle(c.title); showToast(`已选用标题: ${c.title}`); }}
+                        className={`cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-emerald-500/25 via-emerald-500/10 to-transparent border-l-4 border-l-emerald-400 font-bold text-white shadow-[inset_0_1px_0_rgba(16,185,129,0.3),inset_0_-1px_0_rgba(16,185,129,0.3)]'
+                            : 'hover:bg-slate-800/50 text-slate-300 border-l-4 border-l-transparent'
+                        }`}
+                      >
+                        <td className="p-3.5 text-center">
+                          {isSelected ? (
+                            <div className="flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 font-mono">{idx + 1}</span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className={isSelected ? 'text-emerald-200 text-sm font-extrabold' : 'text-slate-100 font-medium hover:text-emerald-400'}>
+                              {c.title}
+                            </span>
+                            {isSelected && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.6)] shrink-0">
+                                当前选用
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-slate-400">{c.method}</td>
+                        <td className="p-3.5 text-slate-400">{c.hook}</td>
+                        <td className="p-3.5 font-bold text-emerald-400">{c.score}</td>
+                        <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            c.risk === '高' ? 'bg-rose-500/20 text-rose-300' : c.risk === '中' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
+                          }`}>
+                            {c.risk || '低'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -482,22 +699,34 @@ export default function App() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
               <Award className="w-4 h-4 text-emerald-400" /> Top 5 推荐角色卡
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-              {titlesData.top5?.map((t, i) => (
-                <div
-                  key={i}
-                  onClick={() => { setSelectedTitle(t.title); showToast(`已选用推荐标题: ${t.title}`); }}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    selectedTitle === t.title
-                      ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                      : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="text-[11px] font-bold text-emerald-400 mb-1">{t.role}</div>
-                  <div className="text-sm font-semibold text-white mb-1">{t.title}</div>
-                  <div className="text-[11px] text-slate-400">{t.reason}</div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mb-6">
+              {titlesData.top5?.map((t, i) => {
+                const isSelected = selectedTitle === t.title;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => { setSelectedTitle(t.title); showToast(`已选用推荐标题: ${t.title}`); }}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-emerald-400 bg-gradient-to-br from-emerald-950/70 via-slate-900 to-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.35)] ring-2 ring-emerald-400/50 scale-[1.02]'
+                        : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-emerald-400">{t.role}</span>
+                      {isSelected && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm flex items-center gap-1">
+                          <Check className="w-3 h-3" /> 已选用
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-sm mb-1.5 ${isSelected ? 'font-extrabold text-white text-[15px]' : 'font-semibold text-slate-100'}`}>
+                      {t.title}
+                    </div>
+                    <div className="text-[11px] text-slate-400 leading-relaxed">{t.reason}</div>
+                  </div>
+                );
+              })}
             </div>
 
           </SpotlightCard>
@@ -521,7 +750,7 @@ export default function App() {
                   route === 'breakthrough' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                破题式 (先选角度)
+                破题式 (先选视角)
               </button>
               <button
                 onClick={() => setRoute('outline')}
@@ -529,7 +758,7 @@ export default function App() {
                   route === 'outline' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                大纲式 (教程/观点)
+                大纲式 (观点/教程)
               </button>
               <button
                 onClick={() => setRoute('short')}
@@ -553,9 +782,28 @@ export default function App() {
                   className="px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 transition-colors flex items-center gap-1.5"
                 >
                   <RefreshCw className={`w-3 h-3 ${loadingAngles ? 'animate-spin' : ''}`} />
-                  {loadingAngles ? '生成角度中...' : '生成破题角度'}
+                  {loadingAngles ? '生成视角中...' : '生成破题视角'}
                 </button>
               </div>
+
+              {/* Angles Progress Bar */}
+              {loadingAngles && (
+                <div className="mb-3 p-3 rounded-xl bg-slate-950 border border-amber-500/30 animate-in fade-in space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-amber-400 font-semibold flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {anglesStage || '正在深度提炼破题切入点...'}
+                    </span>
+                    <span className="font-mono text-amber-300 font-bold">{anglesProgress}%</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-900 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-all duration-300"
+                      style={{ width: `${anglesProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {anglesData && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -588,6 +836,15 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              {/* Insert Stock Image Trigger */}
+              <button
+                onClick={() => setIsWritingImagePickerOpen(true)}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-medium transition-colors flex items-center gap-1.5"
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>插入无版权配图</span>
+              </button>
+
               {isWriting ? (
                 <button
                   onClick={handleStopWriting}
@@ -603,19 +860,53 @@ export default function App() {
             </div>
           </div>
 
-          {/* Article Markdown Output */}
+          {/* Article Streaming Writing Progress Bar */}
+          {isWriting && (
+            <div className="mb-4 p-4 rounded-xl bg-slate-950 border border-emerald-500/40 shadow-lg space-y-2 animate-in fade-in">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>正在流式生成爆款正文...</span>
+                </div>
+                <div className="flex items-center gap-3 font-mono text-xs">
+                  <span className="text-slate-400">已产出: <strong className="text-white">{articleLength}</strong> 字</span>
+                  <span className="text-slate-500">/</span>
+                  <span className="text-slate-400">目标: <strong className="text-slate-200">约 {targetWords}</strong> 字</span>
+                  <span className="text-emerald-400 font-bold ml-1">({writingPercent}%)</span>
+                </div>
+              </div>
+
+              <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 transition-all duration-200 shadow-[0_0_15px_rgba(16,185,129,0.7)]"
+                  style={{ width: `${writingPercent}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Article Markdown Output Preview */}
           {articleMd && (
-            <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 min-h-[300px]">
+            <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 min-h-[250px]">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                 <span className="text-xs font-mono text-slate-400 flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-emerald-400" /> 成稿 Markdown
+                  <span className="text-slate-500 font-normal ml-2">({articleLength} 字)</span>
                 </span>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(articleMd); showToast('Markdown 已复制！'); }}
-                  className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                >
-                  <Copy className="w-3.5 h-3.5" /> 复制 Markdown
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setIsWritingImagePickerOpen(true)}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" /> 搜索无版权图
+                  </button>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(articleMd); showToast('Markdown 已复制！'); }}
+                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> 复制 Markdown
+                  </button>
+                </div>
               </div>
 
               <div className={`prose prose-invert max-w-none text-sm leading-relaxed ${isWriting ? 'typing-cursor' : ''}`}>
@@ -625,78 +916,63 @@ export default function App() {
           )}
         </SpotlightCard>
 
-        {/* Step 3: Layout */}
+        {/* Step 3: Professional WeChat Visual Formatter & Editor */}
         <SpotlightCard className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
                 3 排版
               </span>
-              <h2 className="text-lg font-bold text-white">公众号排版转换器</h2>
+              <h2 className="text-lg font-bold text-white">微信公众号可视化排版编辑器</h2>
             </div>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={layoutStyle}
-                onChange={(e) => setLayoutStyle(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
-              >
-                <option value="auto">智能样式匹配</option>
-                <option value="claude">Claude · 暖白克制编辑感</option>
-                <option value="openai">OpenAI · 黑白灰实用主义</option>
-                <option value="google">Google · 亮白模块卡片</option>
-              </select>
-
-              <ShimmerButton onClick={handleGenLayout} disabled={loadingLayout} size="medium">
-                <Layers className="w-4 h-4 text-emerald-300" />
-                {loadingLayout ? '排版转换中...' : '生成公众号排版'}
-              </ShimmerButton>
-            </div>
+            <span className="text-xs text-slate-400 hidden sm:block">
+              基于开源 Doocs/mdnice 排版引擎 · 100% 微信富文本内联规范
+            </span>
           </div>
 
-          {/* Layout Preview */}
-          {layoutData && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
-                <div className="text-xs text-emerald-300 font-medium">
-                  {copyStatus || '已为文章适配专属微信排版 CSS 样式，点击右侧按钮复制：'}
-                </div>
-                <button
-                  onClick={handleCopyHtml}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-lg transition-all flex items-center gap-2"
-                >
-                  <Copy className="w-4 h-4" /> 复制 HTML 到公众号
-                </button>
-              </div>
-
-              {/* Phone Container Mockup */}
-              <div className="mx-auto max-w-[677px] rounded-3xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl">
-                <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 text-center text-xs font-mono text-slate-400 flex items-center justify-center gap-2">
-                  <Smartphone className="w-4 h-4 text-emerald-400" /> 微信标准文章卡片 (677px)
-                </div>
-                <div
-                  className="p-6 bg-white text-slate-900 overflow-x-auto min-h-[400px]"
-                  dangerouslySetInnerHTML={{ __html: layoutData.html }}
-                />
-              </div>
-            </div>
-          )}
+          <WechatVisualEditor
+            articleMd={articleMd}
+            articleTitle={selectedTitle || topic}
+            onUpdateMd={setArticleMd}
+            onShowToast={showToast}
+          />
         </SpotlightCard>
 
       </main>
 
-      {/* API Settings Modal */}
+      {/* Free Copyright-free Image Picker Modal for Writing Section */}
+      <ImagePickerModal
+        isOpen={isWritingImagePickerOpen}
+        onClose={() => setIsWritingImagePickerOpen(false)}
+        onInsertImage={handleInsertWritingImage}
+      />
+
+      {/* API & Dynamic Model Settings Modal */}
       <ApiSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onSave={handleSaveConfig}
         currentConfig={config}
+        modelsList={modelsList}
+        onUpdateModelsList={handleUpdateModelsList}
       />
 
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 text-xs font-semibold shadow-2xl animate-in slide-in-from-bottom-5 duration-200">
-          {toastMsg}
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl border text-xs font-semibold shadow-2xl animate-in slide-in-from-bottom-5 duration-200 flex items-center gap-3 max-w-lg ${
+            toastMsg.isError
+              ? 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+              : 'bg-slate-900/95 border-emerald-500/50 text-emerald-300'
+          }`}
+        >
+          <span>{toastMsg.text}</span>
+          <button
+            onClick={() => setToastMsg(null)}
+            className="p-1 rounded-md text-slate-400 hover:text-white transition-colors text-xs"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

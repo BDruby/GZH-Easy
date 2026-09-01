@@ -6,9 +6,9 @@
   "main": "server.mjs",
   "scripts": {
     "start": "node server.mjs",
-    "dev": "vite",
+    "dev": "node server.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "node server.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
