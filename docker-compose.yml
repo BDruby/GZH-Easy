@@ -1,0 +1,10 @@
+services:
+  gzh-easy:
+    build: .
+    container_name: gzh-easy
+    restart: always
+    ports:
+      - "43121:43121"
+    environment:
+      - NODE_ENV=production
+      - PORT=43121

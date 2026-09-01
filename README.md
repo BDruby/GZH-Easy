@@ -58,7 +58,40 @@ gzh-baokuan-studio/
 └── package.json
 ```
 
+## Linux 服务器一键部署
+
+### 方式一：一键自动脚本（推荐 ⭐）
+
+在你的 Linux 服务器（Ubuntu / Debian / CentOS / Rocky 等）上执行：
+
+```bash
+# 1. 克隆代码或上传到服务器
+git clone https://github.com/BDruby/GZH-Easy.git
+cd GZH-Easy
+
+# 2. 执行一键部署脚本（自动安装 Node 20、构建并配置开机自启）
+sudo bash deploy.sh
+```
+
+部署完成后，脚本会显示公网访问地址 `http://<你的服务器IP>:43121`。
+
+**常用管理命令**：
+```bash
+systemctl status gzh-easy   # 查看状态
+systemctl restart gzh-easy  # 重启服务
+systemctl stop gzh-easy     # 停止服务
+journalctl -u gzh-easy -f   # 查看实时日志
+```
+
+### 方式二：Docker 容器化部署
+
+```bash
+docker compose up -d --build
+```
+
+---
+
 ## 说明
 
-- 应用只调用 DeepSeek API（OpenAI 兼容），Key 只出现在你的浏览器 → 本机服务器的请求里，不会上传到任何第三方。
-- 需要联网抓取爆款数据的 Skills（`baokuan-article-analysis`、`gzh-explosive-content-detector`、`global-content-search`、`xiaohongshu-search` 等）依赖外部数据源/脚本，不适合放在纯生成管线里，但已随 skills 一并安装，可在 DSH 对话中直接让 agent 使用。
+- 应用只调用兼容 OpenAI 的大模型 API（如 DeepSeek、通义千问等），Key 默认仅保存在浏览器本地 localStorage，安全无忧。
+

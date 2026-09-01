@@ -135,24 +135,81 @@ async function apiTitles(req, res, body) {
   }
 }
 
-// 智能从非标准文本中提取标题候选矩阵
+// 智能从非标准/损坏的 JSON 文本中精准提取标题候选矩阵
 function fallbackParseTitles(rawText, topic) {
-  const lines = (rawText || '')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith('```') && !l.startsWith('<think>'));
+  const text = (rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const candidates = [];
-  for (const line of lines) {
-    const cleaned = line.replace(/^\d+[\.、\s\-]+|^[-*•]\s+|^["'“]|["'”]$/g, '').trim();
-    if (cleaned.length >= 6 && cleaned.length <= 50) {
+
+  // 策略 1：如果文本中包含 JSON 字段结构，用精准正则提取每一个候选标题项
+  const objectBlockRegex = /\{[\s\S]*?"title"\s*:\s*"([^"\r\n]+)"[\s\S]*?\}/gi;
+  let blockMatch;
+  while ((blockMatch = objectBlockRegex.exec(text)) !== null) {
+    const block = blockMatch[0];
+    const titleMatch = block.match(/"title"\s*:\s*"([^"\r\n]+)"/i);
+    const methodMatch = block.match(/"method"\s*:\s*"([^"\r\n]+)"/i);
+    const hookMatch = block.match(/"hook"\s*:\s*"([^"\r\n]+)"/i);
+    const scoreMatch = block.match(/"score"\s*:\s*(\d+)/i);
+    const riskMatch = block.match(/"risk"\s*:\s*"([^"\r\n]+)"/i);
+
+    const title = titleMatch?.[1]?.trim();
+    if (title && !title.includes('候选标题') && !title.includes('标题A') && !title.includes('标题B')) {
       candidates.push({
-        title: cleaned,
-        method: '智能精选',
-        hook: '爆款吸引力',
-        score: Math.floor(86 + Math.random() * 10),
-        risk: '低',
+        title,
+        method: methodMatch?.[1]?.trim() || '智能精选',
+        hook: hookMatch?.[1]?.trim() || '爆款吸引力',
+        score: scoreMatch ? Number(scoreMatch[1]) : Math.floor(86 + Math.random() * 10),
+        risk: riskMatch?.[1]?.trim() || '低',
         riskNote: '',
       });
+    }
+  }
+
+  // 策略 2：如果未匹配到完整块，单独提取所有 "title": "..." 字段
+  if (candidates.length === 0) {
+    const singleTitleRegex = /"title"\s*:\s*"([^"\r\n]+)"/gi;
+    let sMatch;
+    while ((sMatch = singleTitleRegex.exec(text)) !== null) {
+      const title = sMatch[1]?.trim();
+      if (title && !title.includes('候选标题') && !title.includes('标题A') && !title.includes('标题B')) {
+        candidates.push({
+          title,
+          method: '智能精选',
+          hook: '爆款吸引力',
+          score: Math.floor(86 + Math.random() * 10),
+          risk: '低',
+          riskNote: '',
+        });
+      }
+    }
+  }
+
+  // 策略 3：纯文本列表（如 1. 标题一 \n 2. 标题二），严格过滤所有 JSON 语法行
+  if (candidates.length === 0) {
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('```'));
+
+    for (const line of lines) {
+      // 严格跳过所有 JSON 语法和字段关键字行！
+      if (/^[{\[\]}]|^(?:"?candidates"?|"?title"?|"?method"?|"?hook"?|"?score"?|"?risk"?|"?riskNote"?|"?brief"?|"?top5"?|"?ab"?|"?role"?|"?group"?|"?reason"?|"?hypothesis"?|"?items"?)\s*[:\s\[{]/i.test(line)) {
+        continue;
+      }
+      if (/^(?:"?candidates"?|"?title"?|"?method"?|"?hook"?|"?score"?|"?risk"?)\s*":/i.test(line)) {
+        continue;
+      }
+
+      const cleaned = line.replace(/^\d+[\.、\s\-]+|^[-*•]\s+|^["'“]|["'”]$/g, '').trim();
+      if (cleaned.length >= 6 && cleaned.length <= 50) {
+        candidates.push({
+          title: cleaned,
+          method: '智能精选',
+          hook: '爆款吸引力',
+          score: Math.floor(86 + Math.random() * 10),
+          risk: '低',
+          riskNote: '',
+        });
+      }
     }
   }
 
@@ -199,22 +256,42 @@ async function apiAngles(req, res, body) {
   }
 }
 
-// 智能从非标准文本中提取破题角度
+// 智能从非标准/损坏的 JSON 文本中提取破题角度
 function fallbackParseAngles(rawText) {
-  const lines = (rawText || '')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith('```') && !l.startsWith('<think>'));
+  const text = (rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const angles = [];
-  for (const line of lines) {
-    const cleaned = line.replace(/^\d+[\.、\s\-]+|^[-*•]\s+/g, '').trim();
-    if (cleaned.length >= 4) {
-      const parts = cleaned.split(/[:：]/);
-      const title = parts[0].trim().slice(0, 15);
-      const desc = (parts.slice(1).join('：') || cleaned).trim();
-      angles.push({ title, desc });
+
+  // 1. 正则提取 JSON 字段
+  const angleBlockRegex = /"title"\s*:\s*"([^"\r\n]+)"[\s\S]*?"desc"\s*:\s*"([^"\r\n]+)"/gi;
+  let match;
+  while ((match = angleBlockRegex.exec(text)) !== null) {
+    const title = match[1]?.trim();
+    const desc = match[2]?.trim();
+    if (title && !title.includes('角度名')) {
+      angles.push({ title: title.slice(0, 15), desc });
     }
   }
+
+  // 2. 如果未匹配到，纯文本行提取并过滤 JSON 关键词
+  if (angles.length === 0) {
+    const lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('```'));
+    for (const line of lines) {
+      if (/^[{\[\]}]|^(?:"?angles"?|"?title"?|"?desc"?)\s*[:\s\[{]/i.test(line)) {
+        continue;
+      }
+      const cleaned = line.replace(/^\d+[\.、\s\-]+|^[-*•]\s+/g, '').trim();
+      if (cleaned.length >= 4) {
+        const parts = cleaned.split(/[:：]/);
+        const title = parts[0].trim().slice(0, 15);
+        const desc = (parts.slice(1).join('：') || cleaned).trim();
+        angles.push({ title, desc });
+      }
+    }
+  }
+
   return {
     angles: angles.length > 0 ? angles.slice(0, 6) : [
       { title: '反常识切入', desc: '打破传统直觉认知误区，从全新视角展开分析' },
