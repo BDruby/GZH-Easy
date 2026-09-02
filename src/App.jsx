@@ -369,6 +369,9 @@ export default function App() {
         const text = await res.text().catch(() => '');
         let errObj;
         try { errObj = JSON.parse(text); } catch { }
+        if (res.status === 504) {
+          throw new Error('网关响应超时 (HTTP 504)：大模型生成耗时过长，请重试或确认模型服务状态。');
+        }
         throw new Error(errObj?.error || `请求失败 (${res.status})。请确认后端服务已启动。`);
       }
 
@@ -388,6 +391,9 @@ export default function App() {
           if (!line.startsWith('data:')) continue;
           let msg;
           try { msg = JSON.parse(line.slice(5)); } catch { continue; }
+          if (msg.type === 'ping' || msg.type === 'start') {
+            continue;
+          }
           if (msg.type === 'delta') {
             textAcc += msg.text;
             setArticleMd(textAcc);

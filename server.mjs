@@ -381,16 +381,30 @@ async function apiArticle(req, res, body) {
     Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
 
   const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+  // 立即发送握手信号，迫使所有代理（Vite/Nginx）立刻以 200 流式握手，杜绝 504 静默超时
+  send({ type: 'start' });
+
+  // 1.5 秒发送一次保活 ping，在模型准备大篇幅正文期间保持连接活跃
+  const keepAlive = setInterval(() => {
+    send({ type: 'ping' });
+  }, 1500);
+
+  const calcMaxTokens = Math.min(4096, Math.max(1600, Math.ceil(words * 2)));
+
   try {
-    for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: 8192 })) {
+    for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens })) {
       send({ type: 'delta', text: delta });
     }
     send({ type: 'done' });
   } catch (e) {
     send({ type: 'error', message: e.message });
   } finally {
+    clearInterval(keepAlive);
     res.end();
   }
 }
