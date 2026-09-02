@@ -372,13 +372,45 @@ export function WechatVisualEditor({
 
           <div className="w-[1px] h-4 bg-slate-800 mx-1" />
 
+          {/* gzh-design-skill 增强组件插入 */}
+          <button
+            onClick={() => insertTextAtCursor('\n:::lead 本文核心要点：深度拆解最新趋势与实战落地方法论，为你带来一手深度干货。:::\n')}
+            title="插入导读引言卡"
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
+          >
+            <span>📌 导读卡</span>
+          </button>
+          <button
+            onClick={() => insertTextAtCursor('\n:::quote 真正的认知破局，不是掌握更多信息，而是升级底层思考框架。:::\n')}
+            title="插入重点金句框"
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
+          >
+            <span>💡 居中金句</span>
+          </button>
+          <button
+            onClick={() => insertTextAtCursor('\n:::step 核心落地流程与实操指南:::\n')}
+            title="插入步骤徽章标题"
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
+          >
+            <span>🔢 步骤徽章</span>
+          </button>
+          <button
+            onClick={() => insertTextAtCursor('\n:::author 爆款工坊主理人 | 专注深度思考、干货拆解与实战落地。:::\n')}
+            title="插入作者签名档"
+            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
+          >
+            <span>✍️ 作者签名</span>
+          </button>
+
+          <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+
           {/* Copyright-free image picker trigger */}
           <button
             onClick={() => setIsImagePickerOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all font-medium"
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>搜索插入无版权配图</span>
+            <span>无版权图库</span>
           </button>
         </div>
 
