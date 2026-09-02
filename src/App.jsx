@@ -196,8 +196,8 @@ export default function App() {
     showToast(`已切换当前模型为: ${targetModel}`);
   };
 
-  // Helper API call with safe JSON parsing
-  const apiCall = async (endpoint, body) => {
+  // Helper API call 支持流式长连接 (SSE) 与标准 JSON 自动切换，彻底杜绝网关 504 超时
+  const apiCall = async (endpoint, body, onProgress) => {
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -209,15 +209,46 @@ export default function App() {
       body: JSON.stringify({ ...body, baseUrl: config.baseUrl, model: config.model }),
     });
 
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('text/event-stream')) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buf = '';
+      let resultData = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 1);
+          if (!line.startsWith('data:')) continue;
+          let msg;
+          try { msg = JSON.parse(line.slice(5)); } catch { continue; }
+          if (msg.type === 'data') {
+            resultData = msg.data;
+          } else if (msg.type === 'chunk' && onProgress) {
+            onProgress(msg.len);
+          } else if (msg.type === 'error') {
+            throw new Error(msg.message);
+          }
+        }
+      }
+      if (!resultData) throw new Error('未能从模型获取到有效数据，请重试');
+      return resultData;
+    }
+
     const text = await res.text().catch(() => '');
     let data;
     try {
       data = JSON.parse(text);
     } catch {
       if (res.status === 504) {
-        data = { error: `网关响应超时 (HTTP 504)：大模型推理或网络传输耗时过长。建议再次尝试或确认 Base URL 地址是否可连通。` };
+        data = { error: `网关响应超时 (HTTP 504)：大模型推理或网络传输耗时过长。` };
       } else if (res.status === 502 || res.status === 503) {
-        data = { error: `服务暂时不可用 (HTTP ${res.status})。请确认模型服务商服务正常，或检查本地后端服务 (node server.mjs)。` };
+        data = { error: `服务暂时不可用 (HTTP ${res.status})。请确认后端服务 (node server.mjs) 正常运行。` };
       } else {
         data = { error: `服务未返回有效 JSON (HTTP ${res.status})。请确认后端服务正常运行。` };
       }

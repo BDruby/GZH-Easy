@@ -110,7 +110,7 @@ async function apiTestConnection(req, res, body) {
   }
 }
 
-// ---------------- API：爆款标题 ----------------
+// ---------------- API：爆款标题（SSE 立即响应防超时管道） ----------------
 async function apiTitles(req, res, body) {
   const topic = String(body.topic || '').trim();
   if (!topic) return sendJson(res, 400, { error: '请先输入主题' });
@@ -118,20 +118,45 @@ async function apiTitles(req, res, body) {
   const { key, model, baseUrl } = resolveReqConfig(req, body);
   if (!key) return sendJson(res, 401, { error: '缺少 API Key：请在右上角设置中输入，或配置 config.json / 环境变量' });
 
+  // 立即返回 200 SSE 头部，防止任何网关/反向代理（Vite、Nginx、Cloudflare）30s 静默断开并报 504
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
   const messages = [
     { role: 'system', content: titleSystemPrompt() },
     { role: 'user', content: `主题/内容：${topic}\n\n生成 ${count} 个候选标题（至少覆盖 6 种方法），严格按要求的 JSON 结构输出。` },
   ];
 
   try {
-    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.85, maxTokens: 1500, jsonMode: true });
+    let raw = '';
+    // 心跳保活定时器（每 1.5 秒发送一次心跳包，保持 socket 持续活跃）
+    const keepAlive = setInterval(() => {
+      send({ type: 'ping' });
+    }, 1500);
+
+    try {
+      for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.85, maxTokens: 1800 })) {
+        raw += delta;
+        send({ type: 'chunk', len: raw.length });
+      }
+    } finally {
+      clearInterval(keepAlive);
+    }
+
     let parsed = extractJson(raw);
     if (!parsed || !Array.isArray(parsed.candidates) || parsed.candidates.length === 0) {
       parsed = fallbackParseTitles(raw, topic);
     }
-    sendJson(res, 200, parsed);
+    send({ type: 'data', data: parsed });
   } catch (e) {
-    sendJson(res, 500, { error: `标题生成异常: ${e.message}` });
+    send({ type: 'error', message: `标题生成异常: ${e.message}` });
+  } finally {
+    res.end();
   }
 }
 
@@ -232,12 +257,20 @@ function fallbackParseTitles(rawText, topic) {
   };
 }
 
-// ---------------- API：破题角度 ----------------
+// ---------------- API：破题角度（SSE 立即响应防超时管道） ----------------
 async function apiAngles(req, res, body) {
   const topic = String(body.topic || '').trim();
   if (!topic) return sendJson(res, 400, { error: '请先输入主题' });
   const { key, model, baseUrl } = resolveReqConfig(req, body);
   if (!key) return sendJson(res, 401, { error: '缺少 API Key' });
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
   const messages = [
     { role: 'system', content: anglesSystemPrompt() },
@@ -245,14 +278,29 @@ async function apiAngles(req, res, body) {
   ];
 
   try {
-    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: 1000, jsonMode: true });
+    let raw = '';
+    const keepAlive = setInterval(() => {
+      send({ type: 'ping' });
+    }, 1500);
+
+    try {
+      for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: 1200 })) {
+        raw += delta;
+        send({ type: 'chunk', len: raw.length });
+      }
+    } finally {
+      clearInterval(keepAlive);
+    }
+
     let parsed = extractJson(raw);
     if (!parsed || !Array.isArray(parsed.angles) || parsed.angles.length === 0) {
       parsed = fallbackParseAngles(raw);
     }
-    sendJson(res, 200, parsed);
+    send({ type: 'data', data: parsed });
   } catch (e) {
-    sendJson(res, 500, { error: `角度生成异常: ${e.message}` });
+    send({ type: 'error', message: `角度生成异常: ${e.message}` });
+  } finally {
+    res.end();
   }
 }
 
