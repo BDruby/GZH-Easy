@@ -214,7 +214,13 @@ export default function App() {
     try {
       data = JSON.parse(text);
     } catch {
-      data = { error: `服务未返回有效 JSON (HTTP ${res.status})。请确认服务正常运行。` };
+      if (res.status === 504) {
+        data = { error: `网关响应超时 (HTTP 504)：大模型推理或网络传输耗时过长。建议再次尝试或确认 Base URL 地址是否可连通。` };
+      } else if (res.status === 502 || res.status === 503) {
+        data = { error: `服务暂时不可用 (HTTP ${res.status})。请确认模型服务商服务正常，或检查本地后端服务 (node server.mjs)。` };
+      } else {
+        data = { error: `服务未返回有效 JSON (HTTP ${res.status})。请确认后端服务正常运行。` };
+      }
     }
 
     if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);

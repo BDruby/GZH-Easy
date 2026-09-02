@@ -124,7 +124,7 @@ async function apiTitles(req, res, body) {
   ];
 
   try {
-    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.85, maxTokens: 4096, jsonMode: true });
+    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.85, maxTokens: 1500, jsonMode: true });
     let parsed = extractJson(raw);
     if (!parsed || !Array.isArray(parsed.candidates) || parsed.candidates.length === 0) {
       parsed = fallbackParseTitles(raw, topic);
@@ -245,7 +245,7 @@ async function apiAngles(req, res, body) {
   ];
 
   try {
-    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: 2048, jsonMode: true });
+    const raw = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: 1000, jsonMode: true });
     let parsed = extractJson(raw);
     if (!parsed || !Array.isArray(parsed.angles) || parsed.angles.length === 0) {
       parsed = fallbackParseAngles(raw);
