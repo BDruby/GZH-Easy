@@ -54,7 +54,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
+      } catch { }
     }
     return DEFAULT_MODELS;
   });
@@ -150,7 +150,7 @@ export default function App() {
     };
     try {
       localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-    } catch {}
+    } catch { }
   }, [topic, extra, mode, words, route, titlesData, selectedTitle, anglesData, selectedAngle, articleMd]);
 
   // 首次检测到恢复草稿提示
@@ -331,7 +331,7 @@ export default function App() {
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         let errObj;
-        try { errObj = JSON.parse(text); } catch {}
+        try { errObj = JSON.parse(text); } catch { }
         throw new Error(errObj?.error || `请求失败 (${res.status})。请确认后端服务已启动。`);
       }
 
@@ -424,16 +424,16 @@ export default function App() {
       {/* Top Header */}
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          
+
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center font-extrabold text-white text-lg shadow-[0_0_20px_rgba(16,185,129,0.4)]">
               爆
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
-                公众号爆款文章工坊
+                爆款工坊
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  creator-buddy v2.5
+                  v2.5
                 </span>
               </h1>
               <p className="text-xs text-slate-400 hidden sm:block">一句话主题 → 爆款标题 → 智能写作 → 可视化微信排版</p>
@@ -441,7 +441,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            
+
             {/* Auto-Save Status Pill */}
             <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
               <Check className="w-3 h-3" />
@@ -488,11 +488,10 @@ export default function App() {
                             handleSelectActiveModel(m);
                             setIsModelDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
-                            isCurrent
-                              ? 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30'
-                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                          }`}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${isCurrent
+                            ? 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30'
+                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                            }`}
                         >
                           <span className="font-mono truncate">{m}</span>
                           {isCurrent && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
@@ -542,7 +541,7 @@ export default function App() {
               </span>
               <h2 className="text-lg font-bold text-white">输入文章核心主题</h2>
             </div>
-            
+
             <div className="flex items-center gap-3">
               {(topic || articleMd || titlesData) && (
                 <button
@@ -706,11 +705,10 @@ export default function App() {
                       <tr
                         key={idx}
                         onClick={() => { setSelectedTitle(c.title); showToast(`已选用标题: ${c.title}`); }}
-                        className={`cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-emerald-500/25 via-emerald-500/10 to-transparent border-l-4 border-l-emerald-400 font-bold text-white shadow-[inset_0_1px_0_rgba(16,185,129,0.3),inset_0_-1px_0_rgba(16,185,129,0.3)]'
-                            : 'hover:bg-slate-800/50 text-slate-300 border-l-4 border-l-transparent'
-                        }`}
+                        className={`cursor-pointer transition-all ${isSelected
+                          ? 'bg-gradient-to-r from-emerald-500/25 via-emerald-500/10 to-transparent border-l-4 border-l-emerald-400 font-bold text-white shadow-[inset_0_1px_0_rgba(16,185,129,0.3),inset_0_-1px_0_rgba(16,185,129,0.3)]'
+                          : 'hover:bg-slate-800/50 text-slate-300 border-l-4 border-l-transparent'
+                          }`}
                       >
                         <td className="p-3.5 text-center">
                           {isSelected ? (
@@ -737,9 +735,8 @@ export default function App() {
                         <td className="p-3.5 text-slate-400">{c.hook}</td>
                         <td className="p-3.5 font-bold text-emerald-400">{c.score}</td>
                         <td className="p-3.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            c.risk === '高' ? 'bg-rose-500/20 text-rose-300' : c.risk === '中' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${c.risk === '高' ? 'bg-rose-500/20 text-rose-300' : c.risk === '中' ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'
+                            }`}>
                             {c.risk || '低'}
                           </span>
                         </td>
@@ -761,11 +758,10 @@ export default function App() {
                   <div
                     key={i}
                     onClick={() => { setSelectedTitle(t.title); showToast(`已选用推荐标题: ${t.title}`); }}
-                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-emerald-400 bg-gradient-to-br from-emerald-950/70 via-slate-900 to-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.35)] ring-2 ring-emerald-400/50 scale-[1.02]'
-                        : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
-                    }`}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${isSelected
+                      ? 'border-emerald-400 bg-gradient-to-br from-emerald-950/70 via-slate-900 to-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.35)] ring-2 ring-emerald-400/50 scale-[1.02]'
+                      : 'border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-900/60'
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[11px] font-bold text-emerald-400">{t.role}</span>
@@ -801,25 +797,22 @@ export default function App() {
             <div className="flex p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs">
               <button
                 onClick={() => setRoute('breakthrough')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  route === 'breakthrough' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${route === 'breakthrough' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 破题式 (先选视角)
               </button>
               <button
                 onClick={() => setRoute('outline')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  route === 'outline' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${route === 'outline' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 大纲式 (观点/教程)
               </button>
               <button
                 onClick={() => setRoute('short')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  route === 'short' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${route === 'short' ? 'bg-emerald-500 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 短文
               </button>
@@ -866,11 +859,10 @@ export default function App() {
                     <div
                       key={i}
                       onClick={() => setSelectedAngle(`${a.title}：${a.desc}`)}
-                      className={`p-3 rounded-xl border cursor-pointer text-xs transition-all ${
-                        selectedAngle.startsWith(a.title)
-                          ? 'border-amber-500 bg-amber-950/20 text-amber-200'
-                          : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-700'
-                      }`}
+                      className={`p-3 rounded-xl border cursor-pointer text-xs transition-all ${selectedAngle.startsWith(a.title)
+                        ? 'border-amber-500 bg-amber-950/20 text-amber-200'
+                        : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-700'
+                        }`}
                     >
                       <div className="font-bold text-amber-400">{i + 1}. {a.title}</div>
                       <div className="text-[11px] text-slate-400 mt-1">{a.desc}</div>
@@ -1015,11 +1007,10 @@ export default function App() {
       {/* Toast Notification */}
       {toastMsg && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl border text-xs font-semibold shadow-2xl animate-in slide-in-from-bottom-5 duration-200 flex items-center gap-3 max-w-lg ${
-            toastMsg.isError
-              ? 'bg-rose-950/90 border-rose-500/50 text-rose-200'
-              : 'bg-slate-900/95 border-emerald-500/50 text-emerald-300'
-          }`}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl border text-xs font-semibold shadow-2xl animate-in slide-in-from-bottom-5 duration-200 flex items-center gap-3 max-w-lg ${toastMsg.isError
+            ? 'bg-rose-950/90 border-rose-500/50 text-rose-200'
+            : 'bg-slate-900/95 border-emerald-500/50 text-emerald-300'
+            }`}
         >
           <span>{toastMsg.text}</span>
           <button
