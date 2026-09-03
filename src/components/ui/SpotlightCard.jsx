@@ -7,6 +7,7 @@ export function SpotlightCard({
   spotlightColor = 'rgba(16, 185, 129, 0.15)',
   onClick,
   selected = false,
+  overflowVisible = false,
 }) {
   const divRef = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -29,7 +30,8 @@ export function SpotlightCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'relative overflow-hidden rounded-2xl border bg-slate-900/70 p-5 backdrop-blur-md transition-all duration-300',
+        'relative rounded-2xl border bg-slate-900/70 p-5 backdrop-blur-md transition-all duration-300',
+        overflowVisible ? 'overflow-visible' : 'overflow-hidden',
         selected
           ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
           : 'border-slate-800 hover:border-slate-700',

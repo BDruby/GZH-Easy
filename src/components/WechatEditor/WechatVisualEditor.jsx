@@ -25,6 +25,7 @@ import {
   Layers,
   FileCode,
   Download,
+  ChevronDown,
 } from 'lucide-react';
 import { WECHAT_THEMES, formatToWechatHtml } from '../../lib/wechatFormatter.js';
 import { ImagePickerModal } from '../ImagePickerModal.jsx';
@@ -54,21 +55,101 @@ const PRESET_COLORS = [
   '#18181b', // 极简黑
 ];
 
+const WECHAT_COMPONENTS = [
+  {
+    id: 'lead',
+    name: '导读引言卡',
+    tag: ':::lead',
+    desc: '提炼篇首核心要点与读者阅读指引',
+    icon: '📌',
+    template: '\n:::lead 本文核心要点：深度拆解最新趋势与实战落地方法论，为你带来一手深度干货。:::\n',
+  },
+  {
+    id: 'quote',
+    name: '精选居中金句',
+    tag: ':::quote',
+    desc: '大号居中显示核心认知爆点与主张',
+    icon: '💡',
+    template: '\n:::quote 真正的认知破局，不是掌握更多信息，而是升级底层思考框架。:::\n',
+  },
+  {
+    id: 'step',
+    name: '步骤流程徽章',
+    tag: ':::step',
+    desc: '防折行规范实操步骤标题 (STEP 01)',
+    icon: '🔢',
+    template: '\n:::step 01 | 核心落地流程与实操指南:::\n',
+  },
+  {
+    id: 'author',
+    name: '作者专属名片',
+    tag: ':::author',
+    desc: '文末品牌名片，头像/昵称/简介双栏永不错位',
+    icon: '✍️',
+    template: '\n:::author 爆款工坊主理人 | 专注深度思考、干货拆解与实战复盘。关注我们，一起向上破局。:::\n',
+  },
+  {
+    id: 'tip',
+    name: '核心要点提示',
+    tag: ':::tip',
+    desc: '温和绿底重点框，适合技巧与实用 Tips',
+    icon: '🌿',
+    template: '\n:::tip 实用技巧：在写作时善用对比与反差，能迅速抓住读者眼球并提高阅读完播率。:::\n',
+  },
+  {
+    id: 'warning',
+    name: '避坑警示注意',
+    tag: ':::warning',
+    desc: '醒目橙红边框，用于避坑指北与重点注意事项',
+    icon: '⚠️',
+    template: '\n:::warning 避坑提醒：注意段落排版留白，单段文字建议控制在3~4行以内，避免大段密实排版造成阅读压迫感。:::\n',
+  },
+  {
+    id: 'metric',
+    name: '核心指标大卡',
+    tag: ':::metric',
+    desc: '突出展示量化成果与震撼数据 (如 1000W+)',
+    icon: '📊',
+    template: '\n:::metric 1000万+ | 全网累计曝光与深度阅读量:::\n',
+  },
+  {
+    id: 'card',
+    name: '对比票据卡',
+    tag: ':::card',
+    desc: '带票据边框的案例剖析与深度拆解',
+    icon: '🧾',
+    template: '\n:::card 案例对照：传统思维就事论事 VS 爆款逻辑直击痛点并给出闭环方案:::\n',
+  },
+];
+
 export function WechatVisualEditor({
   articleMd,
   articleTitle,
   onUpdateMd,
   onShowToast,
 }) {
-  const [themeId, setThemeId] = useState('classic-green');
+  const [themeId, setThemeId] = useState('moyu-green');
   const [customPrimaryColor, setCustomPrimaryColor] = useState('');
   const [fontSize, setFontSize] = useState(15);
   const [lineHeight, setLineHeight] = useState(1.8);
   const [viewMode, setViewMode] = useState('dual'); // 'dual' | 'editor' | 'preview'
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [isComponentsDropdownOpen, setIsComponentsDropdownOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
 
   const textareaRef = useRef(null);
+  const componentsDropdownRef = useRef(null);
+
+  // 点击组件下拉菜单外部自动收起
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (componentsDropdownRef.current && !componentsDropdownRef.current.contains(e.target)) {
+        setIsComponentsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const activeTheme = WECHAT_THEMES.find((t) => t.id === themeId) || WECHAT_THEMES[0];
   const primaryColor = customPrimaryColor || activeTheme.primaryColor;
@@ -281,75 +362,78 @@ export function WechatVisualEditor({
 
       </div>
 
-      {/* Main Formatting Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs">
+      {/* Main Formatting Toolbar (Sticky below top navbar) */}
+      <div className="sticky top-16 z-30 flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/95 border border-slate-800/90 shadow-2xl backdrop-blur-xl text-xs transition-all">
         <div className="flex items-center gap-1 flex-wrap">
+          {/* Header 1, 2, 3 */}
           <button
             onClick={() => insertTextAtCursor('# ', '', '一级大标题')}
-            title="一级标题"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            title="一级大标题"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Heading1 className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('## ', '', '二级章节标题')}
-            title="二级标题"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            title="二级章节标题"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Heading2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('### ', '', '三级小标题')}
-            title="三级标题"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            title="三级小标题"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Heading3 className="w-4 h-4" />
           </button>
 
           <div className="w-[1px] h-4 bg-slate-800 mx-1" />
 
+          {/* Bold, Italic, Quote */}
           <button
             onClick={() => insertTextAtCursor('**', '**', '重点文字')}
-            title="加粗重点"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            title="加粗强调"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Bold className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('*', '*', '斜体强调')}
-            title="斜体"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            title="斜体强调"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Italic className="w-4 h-4" />
           </button>
           <button
-            onClick={() => insertTextAtCursor('> ', '', '精选金句或重要观点卡片')}
+            onClick={() => insertTextAtCursor('> ', '', '精选观点或引用卡片')}
             title="引用金句块"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Quote className="w-4 h-4" />
           </button>
 
           <div className="w-[1px] h-4 bg-slate-800 mx-1" />
 
+          {/* Lists, Code, Table, Divider */}
           <button
             onClick={() => insertTextAtCursor('- ', '', '清单列表项')}
             title="无序列表"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <List className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('1. ', '', '步骤列表项')}
             title="有序列表"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <ListOrdered className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('```javascript\n// 请输入代码\n', '\n```')}
             title="代码块 (macOS终端风格)"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Code className="w-4 h-4" />
           </button>
@@ -358,58 +442,84 @@ export function WechatVisualEditor({
               insertTextAtCursor('\n| 核心指标 | 说明 | 效果 |\n|---|---|---|\n| 指标A | 重点内容 | 优秀 |\n| 指标B | 细节分析 | 良好 |\n')
             }
             title="插入表格"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <TableIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => insertTextAtCursor('\n---\n')}
             title="分割线"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             <Minus className="w-4 h-4" />
           </button>
 
           <div className="w-[1px] h-4 bg-slate-800 mx-1" />
 
-          {/* gzh-design-skill 增强组件插入 */}
-          <button
-            onClick={() => insertTextAtCursor('\n:::lead 本文核心要点：深度拆解最新趋势与实战落地方法论，为你带来一手深度干货。:::\n')}
-            title="插入导读引言卡"
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
-          >
-            <span>📌 导读卡</span>
-          </button>
-          <button
-            onClick={() => insertTextAtCursor('\n:::quote 真正的认知破局，不是掌握更多信息，而是升级底层思考框架。:::\n')}
-            title="插入重点金句框"
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
-          >
-            <span>💡 居中金句</span>
-          </button>
-          <button
-            onClick={() => insertTextAtCursor('\n:::step 核心落地流程与实操指南:::\n')}
-            title="插入步骤徽章标题"
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
-          >
-            <span>🔢 步骤徽章</span>
-          </button>
-          <button
-            onClick={() => insertTextAtCursor('\n:::author 爆款工坊主理人 | 专注深度思考、干货拆解与实战落地。:::\n')}
-            title="插入作者签名档"
-            className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 flex items-center gap-1 text-xs transition-colors"
-          >
-            <span>✍️ 作者签名</span>
-          </button>
+          {/* 排版组件库交互式下拉菜单 */}
+          <div className="relative" ref={componentsDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsComponentsDropdownOpen((prev) => !prev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all font-medium text-xs shadow-sm"
+              title="微信公众号专业排版增强组件库"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>排版组件库</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                  isComponentsDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isComponentsDropdownOpen && (
+              <div className="absolute left-0 mt-2 w-72 sm:w-80 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-2xl p-2 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-800/80 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-slate-300">
+                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                    微信专用内联排版组件
+                  </span>
+                  <span className="text-[10px] text-slate-500">点击插入光标处</span>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto py-1 space-y-1">
+                  {WECHAT_COMPONENTS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        insertTextAtCursor(item.template);
+                        setIsComponentsDropdownOpen(false);
+                        onShowToast?.(`已插入「${item.name}」组件`);
+                      }}
+                      className="w-full text-left p-2 rounded-xl text-xs hover:bg-slate-800/80 transition-all group flex items-start gap-2.5"
+                    >
+                      <span className="text-base p-1 rounded-lg bg-slate-800/60 group-hover:scale-110 transition-transform shrink-0">
+                        {item.icon}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-slate-200 group-hover:text-emerald-300 flex items-center justify-between">
+                          <span>{item.name}</span>
+                          <span className="text-[10px] font-mono text-slate-500">{item.tag}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="w-[1px] h-4 bg-slate-800 mx-1" />
 
           {/* Copyright-free image picker trigger */}
           <button
             onClick={() => setIsImagePickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-emerald-400 border border-slate-800 transition-all font-medium"
           >
-            <ImageIcon className="w-3.5 h-3.5" />
+            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
             <span>无版权图库</span>
           </button>
         </div>
@@ -418,7 +528,7 @@ export function WechatVisualEditor({
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportHtml}
-            className="px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center gap-1 transition-colors"
+            className="px-2.5 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center gap-1 transition-colors"
           >
             <Download className="w-3.5 h-3.5" /> 导出 HTML
           </button>

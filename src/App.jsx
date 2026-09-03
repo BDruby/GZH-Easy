@@ -1007,7 +1007,7 @@ export default function App() {
         </SpotlightCard>
 
         {/* Step 3: Professional WeChat Visual Formatter & Editor */}
-        <SpotlightCard className="p-6">
+        <SpotlightCard className="p-6" overflowVisible={true}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
