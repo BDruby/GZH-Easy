@@ -42,11 +42,27 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
 };
 function serveStatic(req, res) {
   let urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (urlPath === '/') urlPath = '/index.html';
+
+  // 优先处理 /uploads/ 目录下的本地用户暂存图片
+  if (urlPath.startsWith('/uploads/')) {
+    const uploadFile = path.normalize(path.join(PUBLIC, urlPath));
+    if (fs.existsSync(uploadFile) && fs.statSync(uploadFile).isFile()) {
+      res.writeHead(200, {
+        'Content-Type': MIME[path.extname(uploadFile)] || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      return fs.createReadStream(uploadFile).pipe(res);
+    }
+  }
 
   const baseDir = fs.existsSync(DIST) ? DIST : PUBLIC;
   let file = path.normalize(path.join(baseDir, urlPath));
@@ -74,8 +90,9 @@ function readBody(req) {
     let buf = '';
     req.on('data', (c) => {
       buf += c;
-      if (buf.length > 2 * 1024 * 1024) {
-        reject(new Error('body too large'));
+      // 放宽到 25MB，支持高清剪贴板大图
+      if (buf.length > 25 * 1024 * 1024) {
+        reject(new Error('body too large (exceeds 25MB)'));
         req.destroy();
       }
     });
@@ -396,11 +413,17 @@ async function apiArticle(req, res, body) {
 
   const calcMaxTokens = Math.min(4096, Math.max(1600, Math.ceil(words * 2)));
 
+  let streamedChars = 0;
   try {
     for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens })) {
+      streamedChars += delta.length;
       send({ type: 'delta', text: delta });
     }
-    send({ type: 'done' });
+    if (streamedChars === 0) {
+      send({ type: 'error', message: '模型响应为空，未返回任何正文内容。请检查 API 配置或更换模型后重试。' });
+    } else {
+      send({ type: 'done', totalChars: streamedChars });
+    }
   } catch (e) {
     send({ type: 'error', message: e.message });
   } finally {
@@ -505,6 +528,93 @@ async function apiSearchImages(req, res, url) {
   sendJson(res, 200, { ok: true, results, count: results.length });
 }
 
+// ---------------- API：图片智能暂存与免防盗链公网转存 ----------------
+async function apiUpload(req, res, body) {
+  const data = body.data;
+  if (!data || typeof data !== 'string') {
+    return sendJson(res, 400, { error: '缺少图片数据 (data)' });
+  }
+
+  try {
+    let mimeType = 'image/png';
+    let base64Clean = data;
+    const mimeMatch = data.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.*)$/);
+    if (mimeMatch) {
+      mimeType = mimeMatch[1];
+      base64Clean = mimeMatch[2];
+    }
+
+    const extMap = {
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'image/svg+xml': 'svg',
+    };
+    const ext = extMap[mimeType] || 'png';
+    const buffer = Buffer.from(base64Clean, 'base64');
+    if (buffer.length === 0) {
+      return sendJson(res, 400, { error: '图片数据解析为空' });
+    }
+
+    // 1. 本地持久暂存到 public/uploads/
+    const uploadsDir = path.join(PUBLIC, 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const fileId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const localFileName = `paste_${fileId}.${ext}`;
+    const localFilePath = path.join(uploadsDir, localFileName);
+    fs.writeFileSync(localFilePath, buffer);
+
+    const localUrl = `/uploads/${localFileName}`;
+
+    // 2. 推送至公网免防盗链图床通道（微信后台一键转存）
+    let publicUrl = '';
+    try {
+      const form = new FormData();
+      form.append('reqtype', 'fileupload');
+      form.append('time', '72h');
+      form.append('fileToUpload', new Blob([buffer], { type: mimeType }), localFileName);
+
+      const uploadRes = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+        method: 'POST',
+        body: form,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        },
+        signal: AbortSignal.timeout(12000)
+      });
+
+      if (uploadRes.ok) {
+        const text = (await uploadRes.text()).trim();
+        if (text.startsWith('http://') || text.startsWith('https://')) {
+          publicUrl = text;
+        }
+      }
+    } catch (err) {
+      console.warn('[upload] 公网图床上传异常，自动降级本地直链:', err.message);
+    }
+
+    // 优先公网直链（确保微信后台粘贴自动转存），降级使用本地相对直链
+    const finalUrl = publicUrl || localUrl;
+
+    sendJson(res, 200, {
+      ok: true,
+      url: finalUrl,
+      publicUrl: publicUrl || null,
+      localUrl,
+      filename: body.filename || localFileName,
+      size: buffer.length,
+      uploadedAt: Date.now()
+    });
+  } catch (err) {
+    sendJson(res, 500, { error: `图片处理失败: ${err.message}` });
+  }
+}
+
 // ---------------- 路由 ----------------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -514,6 +624,7 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/images/search') return await apiSearchImages(req, res, url);
       return serveStatic(req, res);
     }
+    if (req.method === 'POST' && url.pathname === '/api/upload') return await apiUpload(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/test-connection') return await apiTestConnection(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/titles') return await apiTitles(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/angles') return await apiAngles(req, res, await readBody(req));

@@ -109,11 +109,42 @@ export default function App() {
   const [isWriting, setIsWriting] = useState(false);
   const [articleMd, setArticleMd] = useState(initialDraft?.articleMd || '');
   const abortControllerRef = useRef(null);
+  const editorSectionRef = useRef(null);
+  const [highlightEditor, setHighlightEditor] = useState(false);
+
+  // 工作模式：'ai' (AI创作全流程) | 'editor' (专注编辑器模式)
+  const [appMode, setAppMode] = useState(() => {
+    try {
+      return localStorage.getItem('gzh_app_mode') || 'ai';
+    } catch {
+      return 'ai';
+    }
+  });
+
+  const handleChangeMode = (newMode) => {
+    setAppMode(newMode);
+    try {
+      localStorage.setItem('gzh_app_mode', newMode);
+    } catch {}
+    showToast(newMode === 'editor' ? '📝 已切换至「编辑器模式」，专注文档排版与设计' : '✨ 已切换至「AI创作模式」');
+  };
+
+  // 智能清洗大模型返回的 markdown 文本（去除思考标签与多余的外层代码块包裹）
+  const cleanArticleMarkdown = (raw) => {
+    if (!raw) return '';
+    let text = raw;
+    text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const codeBlockMatch = text.match(/^```(?:markdown)?\s*\n([\s\S]*?)\n```\s*$/i);
+    if (codeBlockMatch) {
+      text = codeBlockMatch[1].trim();
+    }
+    return text;
+  };
 
   // Toast timer
   const toastTimerRef = useRef(null);
   const showToast = (msg, ms) => {
-    const isErr = msg && (msg.includes('失败') || msg.includes('错误') || msg.includes('异常') || msg.includes('缺少'));
+    const isErr = msg && (msg.includes('失败') || msg.includes('错误') || msg.includes('异常') || msg.includes('缺少') || msg.includes('未能') || msg.includes('⚠️'));
     const duration = ms || (isErr ? 8000 : 4500);
     setToastMsg({ text: msg, isError: isErr });
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -399,10 +430,34 @@ export default function App() {
             setArticleMd(textAcc);
           } else if (msg.type === 'error') {
             throw new Error(msg.message);
-          } else if (msg.type === 'done') {
-            showToast('🎉 正文生成完毕！已自动同步至下方排版器');
           }
         }
+      }
+
+      // 处理 buffer 中末尾未换行的最后一条 SSE 消息
+      if (buf.trim().startsWith('data:')) {
+        try {
+          const msg = JSON.parse(buf.trim().slice(5));
+          if (msg.type === 'delta') {
+            textAcc += msg.text;
+          } else if (msg.type === 'error') {
+            throw new Error(msg.message);
+          }
+        } catch {}
+      }
+
+      // 智能清洗正文 Markdown（去除思考标签与外层代码块）
+      const finalCleaned = cleanArticleMarkdown(textAcc);
+      if (!finalCleaned.trim()) {
+        showToast('⚠️ 大模型未产出有效正文，请检查 API 配置与模型状态');
+      } else {
+        setArticleMd(finalCleaned);
+        showToast('🎉 正文生成完毕！已自动同步至下方排版器');
+        setTimeout(() => {
+          editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setHighlightEditor(true);
+          setTimeout(() => setHighlightEditor(false), 2500);
+        }, 120);
       }
     } catch (e) {
       if (e.name !== 'AbortError') showToast('写作失败: ' + e.message);
@@ -485,79 +540,111 @@ export default function App() {
 
           <div className="flex items-center gap-3">
 
+            {/* Mode Switcher Segmented Control: AI模式 vs 编辑器模式 */}
+            <div className="flex items-center p-1 rounded-xl bg-slate-900 border border-slate-800 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleChangeMode('ai')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  appMode === 'ai'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="完整流程：输入主题 → 爆款标题 → 智能写作 → 微信排版"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI模式</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeMode('editor')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  appMode === 'editor'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="专注排版：隐藏AI生成流程，专心进行 Markdown 排版与黑科技组件设计"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>编辑器模式</span>
+              </button>
+            </div>
+
             {/* Auto-Save Status Pill */}
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
+            <div className="hidden lg:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 font-medium">
               <Check className="w-3 h-3" />
-              <span>草稿已自动本地保存</span>
+              <span>草稿已自动保存</span>
             </div>
 
             {/* Quick Model Selector Dropdown */}
-            <div className="relative" ref={modelDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsModelDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-200 transition-all shadow-sm focus:outline-none"
-              >
-                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="font-mono font-medium max-w-[140px] sm:max-w-[190px] truncate text-slate-100">
-                  {config.model}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+            {appMode === 'ai' && (
+              <div className="relative" ref={modelDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsModelDropdownOpen((prev) => !prev)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs text-slate-200 transition-all shadow-sm focus:outline-none"
+                >
+                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="font-mono font-medium max-w-[120px] sm:max-w-[170px] truncate text-slate-100">
+                    {config.model}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              {isModelDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-800/80 flex items-center justify-between">
-                    <span>切换当前模型</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModelDropdownOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[11px] font-bold"
-                    >
-                      <Plus className="w-3 h-3" /> 管理/新增
-                    </button>
+                {isModelDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-slate-900/95 border border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-800/80 flex items-center justify-between">
+                      <span>切换当前模型</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModelDropdownOpen(false);
+                          setIsSettingsOpen(true);
+                        }}
+                        className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[11px] font-bold"
+                      >
+                        <Plus className="w-3 h-3" /> 管理/新增
+                      </button>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto py-1 space-y-0.5">
+                      {modelsList.map((m) => {
+                        const isCurrent = config.model === m;
+                        return (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              handleSelectActiveModel(m);
+                              setIsModelDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${isCurrent
+                              ? 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30'
+                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                              }`}
+                          >
+                            <span className="font-mono truncate">{m}</span>
+                            {isCurrent && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="pt-1.5 border-t border-slate-800/80">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsModelDropdownOpen(false);
+                          setIsSettingsOpen(true);
+                        }}
+                        className="w-full text-center py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 text-[11px] text-slate-300 hover:text-emerald-400 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Settings className="w-3 h-3" />
+                        <span>更多 API 与模型配置</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto py-1 space-y-0.5">
-                    {modelsList.map((m) => {
-                      const isCurrent = config.model === m;
-                      return (
-                        <button
-                          key={m}
-                          type="button"
-                          onClick={() => {
-                            handleSelectActiveModel(m);
-                            setIsModelDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${isCurrent
-                            ? 'bg-emerald-500/15 text-emerald-300 font-bold border border-emerald-500/30'
-                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                            }`}
-                        >
-                          <span className="font-mono truncate">{m}</span>
-                          {isCurrent && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="pt-1.5 border-t border-slate-800/80">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsModelDropdownOpen(false);
-                        setIsSettingsOpen(true);
-                      }}
-                      className="w-full text-center py-1.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 text-[11px] text-slate-300 hover:text-emerald-400 flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Settings className="w-3 h-3" />
-                      <span>更多 API 与模型配置</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* API Settings Modal Trigger */}
             <button
@@ -575,8 +662,11 @@ export default function App() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 space-y-8 relative z-10">
 
-        {/* Step 0: Topic Input Card */}
-        <SpotlightCard className="p-6">
+        {/* AI 模式专属流程：Step 0 (选题), Step 1 (标题矩阵), Step 2 (正文创作) */}
+        {appMode === 'ai' && (
+          <>
+            {/* Step 0: Topic Input Card */}
+            <SpotlightCard className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
@@ -1005,28 +1095,70 @@ export default function App() {
             </div>
           )}
         </SpotlightCard>
+          </>
+        )}
+
+        {/* 编辑器模式顶栏说明 */}
+        {appMode === 'editor' && (
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-emerald-500/30 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                  微信公众号专业排版编辑器
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 font-normal border border-emerald-500/20">
+                    专注排版模式
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  已隐藏上层 AI 生成流程 · 纯粹排版无干扰 · 支持实时 Markdown 渲染、黑科技 SVG 与精选组件库
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleChangeMode('ai')}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/90 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>切换回 AI 模式</span>
+            </button>
+          </div>
+        )}
 
         {/* Step 3: Professional WeChat Visual Formatter & Editor */}
-        <SpotlightCard className="p-6" overflowVisible={true}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
-                3 排版
+        <div ref={editorSectionRef} className="transition-all duration-300">
+          <SpotlightCard
+            className={`p-6 transition-all duration-500 ${
+              highlightEditor
+                ? 'ring-2 ring-emerald-400 shadow-[0_0_35px_rgba(16,185,129,0.4)]'
+                : ''
+            }`}
+            overflowVisible={true}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold">
+                  {appMode === 'ai' ? '3 排版' : '排版设计'}
+                </span>
+                <h2 className="text-lg font-bold text-white">微信公众号可视化排版编辑器</h2>
+              </div>
+              <span className="text-xs text-slate-400 hidden sm:block">
+                基于开源 Doocs/mdnice 排版引擎 · 100% 微信富文本内联规范
               </span>
-              <h2 className="text-lg font-bold text-white">微信公众号可视化排版编辑器</h2>
             </div>
-            <span className="text-xs text-slate-400 hidden sm:block">
-              基于开源 Doocs/mdnice 排版引擎 · 100% 微信富文本内联规范
-            </span>
-          </div>
 
-          <WechatVisualEditor
-            articleMd={articleMd}
-            articleTitle={selectedTitle || topic}
-            onUpdateMd={setArticleMd}
-            onShowToast={showToast}
-          />
-        </SpotlightCard>
+            <WechatVisualEditor
+              articleMd={articleMd}
+              articleTitle={selectedTitle || topic}
+              onUpdateMd={setArticleMd}
+              onShowToast={showToast}
+              isStandaloneMode={appMode === 'editor'}
+            />
+          </SpotlightCard>
+        </div>
 
       </main>
 
