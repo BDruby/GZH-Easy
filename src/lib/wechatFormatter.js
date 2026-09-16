@@ -95,8 +95,34 @@ export function hexToRgba(hex, alpha = 1) {
 }
 
 /**
+ * SVG 矢量多行文字渲染器（替代微信不支持的 foreignObject，彻底杜绝文字消失与顺色）
+ */
+function renderSvgMultilineText(text, x, startY, lineHeight, maxCharsPerLine = 20, fill = '#1e293b', fontSize = 14, fontWeight = 'bold') {
+  if (!text) return '';
+  const lines = [];
+  let remaining = text.trim();
+  while (remaining.length > 0) {
+    if (remaining.length <= maxCharsPerLine) {
+      lines.push(remaining);
+      break;
+    }
+    lines.push(remaining.slice(0, maxCharsPerLine));
+    remaining = remaining.slice(maxCharsPerLine);
+  }
+  return lines
+    .map(
+      (line, idx) =>
+        `<text x="${x}" y="${startY + idx * lineHeight}" text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" letter-spacing="0.5">${escapeHtml(line)}</text>`
+    )
+    .join('\n');
+}
+
+/**
  * 微信公众号专用增强排版组件渲染器
- * 核心原则：不使用脆弱的 flex/gap，优先采用 table 与纯内联行内块，保证微信后台粘贴 100% 还原
+ * 核心原则：
+ * 1. 杜绝 CSS 继承与渐变丢失导致的“文字背景顺色”，所有背景必须有纯色 background-color 兜底！
+ * 2. 所有文本叶子节点显式注入 color，杜绝微信后台清洗覆盖默认黑字！
+ * 3. 避免脆弱的 flex/gap，优先采用 table 与纯内联行内块，保证微信后台粘贴 100% 还原！
  */
 function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight }) {
   const content = (rawContent || '').trim();
@@ -112,7 +138,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
           📌 导读 · LEAD IN
         </div>
         <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: ${textColor}; font-weight: 500; text-align: justify;">
-          ${formatInline(content, primary)}
+          <span style="color: ${textColor}; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
         </p>
       </section>
     `;
@@ -126,7 +152,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       <section style="margin: 28px 0; padding: 20px 22px; background-color: ${bg}; border: 1px dashed ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
         <div style="font-size: 26px; color: ${primary}; line-height: 1; margin-bottom: 6px; font-family: Georgia, serif;">“</div>
         <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: ${primary}; line-height: 1.6; letter-spacing: 0.5px;">
-          ${formatInline(content, primary)}
+          <span style="color: ${primary}; font-weight: bold;">${formatInline(content, primary)}</span>
         </p>
         <div style="font-size: 26px; color: ${primary}; line-height: 1; margin-top: 6px; font-family: Georgia, serif;">”</div>
       </section>
@@ -184,10 +210,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
               <td style="vertical-align: middle; padding: 0 0 0 14px; border: none;">
                 <section style="margin: 0; padding: 0;">
                   <div style="font-size: 15px; font-weight: bold; color: ${textColor}; line-height: 1.4; margin-bottom: 4px;">
-                    ${formatInline(authorName, primary)}
+                    <span style="color: ${textColor}; font-weight: bold;">${formatInline(authorName, primary)}</span>
                   </div>
                   <div style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 0;">
-                    ${formatInline(authorBio, primary)}
+                    <span style="color: #64748b;">${formatInline(authorBio, primary)}</span>
                   </div>
                 </section>
               </td>
@@ -206,7 +232,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
           💡 核心要点 / TIP
         </div>
         <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #166534;">
-          ${formatInline(content, '#15803d')}
+          <span style="color: #166534;">${formatInline(content, '#15803d')}</span>
         </p>
       </section>
     `;
@@ -220,7 +246,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
           ⚠️ 避坑提醒 / WARNING
         </div>
         <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #9a3412;">
-          ${formatInline(content, '#c2410c')}
+          <span style="color: #9a3412;">${formatInline(content, '#c2410c')}</span>
         </p>
       </section>
     `;
@@ -236,10 +262,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     return `
       <section style="margin: 28px 0; padding: 22px 20px; background-color: ${bg}; border: 1px solid ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
         <div style="font-size: 32px; font-weight: 900; color: ${primary}; line-height: 1.2; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, sans-serif;">
-          ${formatInline(val, primary)}
+          <span style="color: ${primary};">${formatInline(val, primary)}</span>
         </div>
         <div style="font-size: 13px; font-weight: 500; color: #64748b; margin-top: 6px; letter-spacing: 0.5px;">
-          ${formatInline(label, primary)}
+          <span style="color: #64748b;">${formatInline(label, primary)}</span>
         </div>
       </section>
     `;
@@ -253,29 +279,33 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
           🧾 深度拆解 · NOTE
         </div>
         <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #713f12;">
-          ${formatInline(content, '#854d0e')}
+          <span style="color: #713f12;">${formatInline(content, '#854d0e')}</span>
         </p>
       </section>
     `;
   }
 
-  // 9. 黑金极客悬浮金句卡 :::goldquote
+  // 9. 黑金极客悬浮金句卡 :::goldquote（防顺色防文字变黑：纯深色 background-color + section 标签 + 叶子 span 显式金色）
   if (lowerType === 'goldquote') {
     return `
-      <section style="margin: 28px 0; padding: 22px 24px; background: linear-gradient(135deg, #18181b 0%, #09090b 100%); border: 1px solid #d97706; border-radius: 14px; box-sizing: border-box; box-shadow: 0 8px 24px rgba(0,0,0,0.25); text-align: center; position: relative;">
-        <div style="font-size: 32px; color: #f59e0b; line-height: 1; margin-bottom: 4px; font-family: Georgia, serif; font-weight: bold; opacity: 0.9;">“</div>
-        <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: 700; color: #fef3c7; line-height: 1.7; letter-spacing: 0.6px;">
-          ${formatInline(content, '#fbbf24')}
-        </p>
-        <div style="font-size: 32px; color: #f59e0b; line-height: 1; margin-top: 4px; font-family: Georgia, serif; font-weight: bold; opacity: 0.9;">”</div>
-        <div style="margin-top: 10px; font-size: 11px; color: #b45309; letter-spacing: 1.5px; text-transform: uppercase; font-family: Menlo, monospace;">
-          ★ GOLDEN INSIGHT ★
-        </div>
+      <section style="margin: 28px 0; padding: 22px 24px; background-color: #18181b; border: 1px solid #d97706; border-radius: 14px; box-sizing: border-box; box-shadow: 0 8px 24px rgba(0,0,0,0.25); text-align: center;">
+        <section style="font-size: 32px; line-height: 1; margin-bottom: 6px; font-family: Georgia, serif; font-weight: bold; text-align: center;">
+          <span style="color: #f59e0b; font-size: 32px; font-family: Georgia, serif; font-weight: bold; line-height: 1;">“</span>
+        </section>
+        <section style="margin: 0; font-size: ${fontSize + 1}px; font-weight: 700; line-height: 1.7; letter-spacing: 0.6px; text-align: center;">
+          <span style="color: #fef3c7; font-size: ${fontSize + 1}px; font-weight: 700; line-height: 1.7;">${formatInline(content, '#fbbf24')}</span>
+        </section>
+        <section style="font-size: 32px; line-height: 1; margin-top: 6px; font-family: Georgia, serif; font-weight: bold; text-align: center;">
+          <span style="color: #f59e0b; font-size: 32px; font-family: Georgia, serif; font-weight: bold; line-height: 1;">”</span>
+        </section>
+        <section style="margin-top: 10px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; font-family: Menlo, monospace; font-weight: bold; text-align: center;">
+          <span style="color: #fbbf24; font-size: 11px; font-family: Menlo, monospace; font-weight: bold; letter-spacing: 1.5px;">★ GOLDEN INSIGHT ★</span>
+        </section>
       </section>
     `;
   }
 
-  // 10. 微信真实对话问答气泡 :::qa
+  // 10. 微信真实对话问答气泡 :::qa（防圆形塌陷：使用固定宽高 section 代替 span 作为头像，保证 100% 正圆）
   if (lowerType === 'qa') {
     const parts = content.split(/[|｜]/);
     const qText = parts[0]?.trim() || '读者提问：请问如何抓住当下的核心破局红利？';
@@ -283,35 +313,35 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     return `
       <section style="margin: 26px 0; box-sizing: border-box;">
         <!-- 读者提问行 (左侧) -->
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0 0 14px 0; padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0 0 14px 0; padding: 0; background: transparent;">
           <tbody>
             <tr>
               <td style="width: 38px; vertical-align: top; padding: 0 10px 0 0; border: none;">
-                <span style="display: block; width: 34px; height: 34px; line-height: 34px; border-radius: 50%; background: #94a3b8; color: #ffffff; font-size: 13px; font-weight: bold; text-align: center;">
-                  问
-                </span>
+                <section style="width: 34px; height: 34px; line-height: 34px; border-radius: 17px; background-color: #94a3b8; text-align: center; margin: 0 auto; box-sizing: border-box;">
+                  <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 34px; text-align: center;">问</span>
+                </section>
               </td>
               <td style="vertical-align: top; border: none;">
-                <div style="display: inline-block; background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; border-top-left-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; color: #334155; text-align: justify; max-width: 90%;">
-                  ${formatInline(qText, '#2563eb')}
-                </div>
+                <section style="display: inline-block; background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; border-top-left-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; text-align: justify; max-width: 90%; box-sizing: border-box;">
+                  <span style="color: #334155; font-size: ${fontSize - 1}px;">${formatInline(qText, '#2563eb')}</span>
+                </section>
               </td>
             </tr>
           </tbody>
         </table>
         <!-- 主理人回答行 (右侧) -->
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
           <tbody>
             <tr>
               <td style="vertical-align: top; text-align: right; border: none;">
-                <div style="display: inline-block; background-color: ${hexToRgba(primary, 0.12)}; border: 1px solid ${hexToRgba(primary, 0.3)}; border-radius: 12px; border-top-right-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; color: ${textColor}; text-align: justify; max-width: 90%;">
-                  ${formatInline(aText, primary)}
-                </div>
+                <section style="display: inline-block; background-color: ${hexToRgba(primary, 0.12)}; border: 1px solid ${hexToRgba(primary, 0.3)}; border-radius: 12px; border-top-right-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; text-align: justify; max-width: 90%; box-sizing: border-box;">
+                  <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(aText, primary)}</span>
+                </section>
               </td>
               <td style="width: 38px; vertical-align: top; padding: 0 0 0 10px; border: none; text-align: right;">
-                <span style="display: block; width: 34px; height: 34px; line-height: 34px; border-radius: 50%; background-color: ${primary}; color: #ffffff; font-size: 13px; font-weight: bold; text-align: center; margin-left: auto;">
-                  答
-                </span>
+                <section style="width: 34px; height: 34px; line-height: 34px; border-radius: 17px; background-color: ${primary}; text-align: center; margin-left: auto; box-sizing: border-box;">
+                  <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 34px; text-align: center;">答</span>
+                </section>
               </td>
             </tr>
           </tbody>
@@ -330,15 +360,15 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       return `
         <tr>
           <td style="width: 22px; vertical-align: top; padding: 0 8px 18px 0; border: none; position: relative;">
-            <span style="display: block; width: 12px; height: 12px; border-radius: 50%; background-color: ${primary}; border: 2px solid #ffffff; box-shadow: 0 0 0 2px ${primary}; margin: 3px auto 0 auto;"></span>
+            <section style="width: 12px; height: 12px; border-radius: 6px; background-color: ${primary}; border: 2px solid #ffffff; box-shadow: 0 0 0 2px ${primary}; margin: 3px auto 0 auto; box-sizing: border-box;"></section>
           </td>
           <td style="vertical-align: top; padding: 0 0 18px 0; border: none; border-left: 2px solid ${hexToRgba(primary, 0.3)}; padding-left: 12px;">
-            <div style="font-size: 13px; font-weight: bold; color: ${primary}; font-family: Menlo, monospace; margin-bottom: 2px;">
-              ${formatInline(timeNode, primary)}
-            </div>
-            <div style="font-size: ${fontSize - 1}px; line-height: 1.6; color: ${textColor};">
-              ${formatInline(textNode, primary)}
-            </div>
+            <section style="font-size: 13px; font-weight: bold; font-family: Menlo, monospace; margin-bottom: 2px;">
+              <span style="color: ${primary}; font-weight: bold;">${formatInline(timeNode, primary)}</span>
+            </section>
+            <section style="font-size: ${fontSize - 1}px; line-height: 1.6;">
+              <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(textNode, primary)}</span>
+            </section>
           </td>
         </tr>
       `;
@@ -367,21 +397,21 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
             <tr>
               <!-- 左侧避坑 -->
               <td style="width: 50%; vertical-align: top; background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 14px 16px; border: none;">
-                <div style="font-size: 13px; font-weight: bold; color: #e11d48; margin-bottom: 6px; display: flex; align-items: center;">
-                  ❌ 常见避坑误区
-                </div>
-                <div style="font-size: ${fontSize - 2}px; line-height: 1.6; color: #9f1239; text-align: justify;">
-                  ${formatInline(wrongText, '#e11d48')}
-                </div>
+                <section style="font-size: 13px; font-weight: bold; margin-bottom: 6px;">
+                  <span style="color: #e11d48; font-size: 13px; font-weight: bold;">❌ 常见避坑误区</span>
+                </section>
+                <section style="font-size: ${fontSize - 2}px; line-height: 1.6; text-align: justify;">
+                  <span style="color: #9f1239; font-size: ${fontSize - 2}px;">${formatInline(wrongText, '#e11d48')}</span>
+                </section>
               </td>
               <!-- 右侧破局 -->
               <td style="width: 50%; vertical-align: top; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px 16px; border: none;">
-                <div style="font-size: 13px; font-weight: bold; color: #16a34a; margin-bottom: 6px; display: flex; align-items: center;">
-                  ✔️ 高效破局解法
-                </div>
-                <div style="font-size: ${fontSize - 2}px; line-height: 1.6; color: #166534; text-align: justify;">
-                  ${formatInline(rightText, '#16a34a')}
-                </div>
+                <section style="font-size: 13px; font-weight: bold; margin-bottom: 6px;">
+                  <span style="color: #16a34a; font-size: 13px; font-weight: bold;">✔️ 高效破局解法</span>
+                </section>
+                <section style="font-size: ${fontSize - 2}px; line-height: 1.6; text-align: justify;">
+                  <span style="color: #166534; font-size: ${fontSize - 2}px;">${formatInline(rightText, '#16a34a')}</span>
+                </section>
               </td>
             </tr>
           </tbody>
@@ -396,51 +426,41 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const brandName = parts[0]?.trim() || '爆款内容工坊';
     const slogan = parts[1]?.trim() || '专注于深度思考、技术前沿与实战认知复盘。关注我们，一起持续进化。';
     return `
-      <section style="margin: 36px 0 20px 0; padding: 22px 18px; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border: 1px dashed #cbd5e1; border-radius: 16px; text-align: center; box-sizing: border-box;">
-        <span style="display: inline-block; width: 48px; height: 48px; line-height: 48px; border-radius: 50%; background-color: ${primary}; color: #ffffff; font-size: 22px; font-weight: bold; margin-bottom: 10px; box-shadow: 0 4px 12px ${hexToRgba(primary, 0.4)};">
-          ★
-        </span>
-        <div style="font-size: 16px; font-weight: 800; color: ${textColor}; letter-spacing: 0.5px; margin-bottom: 6px;">
-          ${formatInline(brandName, primary)}
-        </div>
-        <p style="margin: 0 auto 14px auto; font-size: 13px; line-height: 1.6; color: #64748b; max-width: 90%;">
-          ${formatInline(slogan, primary)}
+      <section style="margin: 36px 0 20px 0; padding: 22px 18px; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 16px; text-align: center; box-sizing: border-box;">
+        <section style="width: 48px; height: 48px; line-height: 48px; border-radius: 24px; background-color: ${primary}; color: #ffffff; font-size: 22px; font-weight: bold; margin: 0 auto 10px auto; box-shadow: 0 4px 12px ${hexToRgba(primary, 0.4)}; text-align: center; box-sizing: border-box;">
+          <span style="color: #ffffff; font-size: 22px; line-height: 48px;">★</span>
+        </section>
+        <section style="font-size: 16px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 6px; text-align: center;">
+          <span style="color: ${textColor}; font-size: 16px; font-weight: 800;">${formatInline(brandName, primary)}</span>
+        </section>
+        <p style="margin: 0 auto 14px auto; font-size: 13px; line-height: 1.6; max-width: 90%; text-align: center;">
+          <span style="color: #64748b; font-size: 13px;">${formatInline(slogan, primary)}</span>
         </p>
-        <div style="display: inline-block; padding: 6px 18px; border-radius: 20px; background-color: ${primary}; color: #ffffff; font-size: 12px; font-weight: bold; letter-spacing: 1px;">
-          长按上方公众号名片 · 关注我们
-        </div>
+        <section style="display: inline-block; padding: 7px 20px; border-radius: 20px; background-color: ${primary}; text-align: center;">
+          <span style="color: #ffffff; font-size: 12px; font-weight: bold; letter-spacing: 1px;">长按上方公众号名片 · 关注我们</span>
+        </section>
       </section>
     `;
   }
 
-  // 14. 文末点赞三连仪式感卡 :::interact
+  // 14. 文末点赞三连仪式感卡 :::interact（彻底杜绝 table，使用 inline-block 药丸标签，保证居中永不错位）
   if (lowerType === 'interact') {
     return `
       <section style="margin: 30px 0; padding: 18px 20px; background-color: #fafafa; border-radius: 12px; text-align: center; box-sizing: border-box; border: 1px solid #eaeaea;">
-        <div style="font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 12px; letter-spacing: 0.5px;">
-          ${formatInline(content || '如果觉得本文有启发，欢迎点击下方互动支持我们：', primary)}
-        </div>
-        <table style="margin: 0 auto; border-collapse: collapse; border: none;">
-          <tbody>
-            <tr>
-              <td style="padding: 0 10px; border: none; text-align: center;">
-                <span style="display: inline-block; padding: 6px 14px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; font-size: 12px; color: #334155; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
-                  👍 点赞
-                </span>
-              </td>
-              <td style="padding: 0 10px; border: none; text-align: center;">
-                <span style="display: inline-block; padding: 6px 14px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; font-size: 12px; color: #334155; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
-                  🌟 在看
-                </span>
-              </td>
-              <td style="padding: 0 10px; border: none; text-align: center;">
-                <span style="display: inline-block; padding: 6px 14px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; font-size: 12px; color: #334155; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
-                  ✈️ 分享朋友圈
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <section style="font-size: 13px; font-weight: 600; margin-bottom: 12px; letter-spacing: 0.5px; text-align: center;">
+          <span style="color: #475569; font-size: 13px; font-weight: 600;">${formatInline(content || '如果觉得本文有启发，欢迎点击下方互动支持我们：', primary)}</span>
+        </section>
+        <section style="text-align: center; line-height: 1.8;">
+          <section style="display: inline-block; margin: 4px 6px; padding: 7px 16px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+            <span style="font-size: 13px; color: #334155; font-weight: bold; line-height: 1.4;">👍 点赞</span>
+          </section>
+          <section style="display: inline-block; margin: 4px 6px; padding: 7px 16px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+            <span style="font-size: 13px; color: #334155; font-weight: bold; line-height: 1.4;">🌟 在看</span>
+          </section>
+          <section style="display: inline-block; margin: 4px 6px; padding: 7px 16px; border-radius: 20px; background-color: #ffffff; border: 1px solid #e2e8f0; vertical-align: middle; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+            <span style="font-size: 13px; color: #334155; font-weight: bold; line-height: 1.4;">✈️ 分享朋友圈</span>
+          </section>
+        </section>
       </section>
     `;
   }
@@ -449,7 +469,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'highlight') {
     return `
       <section style="margin: 20px 0; padding: 8px 12px; box-sizing: border-box;">
-        <span style="font-size: ${fontSize}px; line-height: 1.8; color: ${textColor}; background: linear-gradient(180deg, transparent 60%, #fef08a 60%); padding: 2px 4px; font-weight: bold; border-radius: 2px;">
+        <span style="font-size: ${fontSize}px; line-height: 1.8; color: ${textColor}; background-color: #fef08a; padding: 2px 6px; font-weight: bold; border-radius: 3px;">
           ${formatInline(content, primary)}
         </span>
       </section>
@@ -465,12 +485,12 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       const label = parts[1]?.trim() || '核心指标';
       return `
         <td style="width: ${Math.floor(100 / (items.length || 1))}%; text-align: center; vertical-align: middle; padding: 10px; border: none;">
-          <div style="font-size: 24px; font-weight: 900; color: ${primary}; line-height: 1.2; font-family: Menlo, monospace;">
-            ${formatInline(val, primary)}
-          </div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
-            ${formatInline(label, primary)}
-          </div>
+          <section style="font-size: 24px; font-weight: 900; line-height: 1.2; font-family: Menlo, monospace; text-align: center;">
+            <span style="color: ${primary}; font-weight: 900; font-size: 24px;">${formatInline(val, primary)}</span>
+          </section>
+          <section style="font-size: 11px; margin-top: 4px; text-align: center;">
+            <span style="color: #64748b; font-size: 11px;">${formatInline(label, primary)}</span>
+          </section>
         </td>
       `;
     }).join('');
@@ -486,9 +506,214 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // ==================== 微信黑科技 SVG 交互组件系列 ====================
+  // ==================== 全新四大微信流行图册排版组件 ====================
 
-  // 17. 微信黑科技：点击变身卡片 :::svg-morph
+  // 17. 微信原生横滑焦点相册 (Banner滑动 / 轮播组图) :::gallery-scroll
+  // 注意：微信官方规定，PC 端公众号编辑后台处于打字录入状态，锁定了触摸滚动；必须在公众号后台点击右上角「预览」发送到手机端体验手势横滑！
+  if (lowerType === 'gallery-scroll' || lowerType === 'scroll-gallery') {
+    const lines = content.split('\n').map(s => s.trim()).filter(Boolean);
+    const rawCards = lines.length > 0 && lines[0].includes('||') 
+      ? content.split('||').map(s => s.trim()).filter(Boolean)
+      : lines;
+
+    const cardsHtml = rawCards.map((card, i) => {
+      const parts = card.split(/[|｜]/);
+      const imgUrl = parts[0]?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';
+      const cardTitle = parts[1]?.trim() || `精彩图册 0${i + 1}`;
+      const cardDesc = parts[2]?.trim() || '左右滑动探索更多高画质视觉呈现与细节解析。';
+
+      return `
+        <section style="display: inline-block; width: 80%; max-width: 300px; vertical-align: top; margin-right: 14px; border-radius: 12px; overflow: hidden; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(0,0,0,0.06); box-sizing: border-box; white-space: normal;">
+          <section style="width: 100%; height: 180px; max-height: 180px; overflow: hidden; background-color: #f1f5f9; position: relative;">
+            <img src="${imgUrl}" alt="${escapeHtml(cardTitle)}" style="display: block; width: 100% !important; height: 180px !important; min-height: 180px !important; max-height: 180px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+          </section>
+          <section style="padding: 12px 14px; background-color: #ffffff; box-sizing: border-box;">
+            <section style="font-size: 14px; font-weight: bold; line-height: 1.4; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <span style="color: #1e293b; font-size: 14px; font-weight: bold;">${formatInline(cardTitle, primary)}</span>
+            </section>
+            <section style="font-size: 12px; line-height: 1.5; height: 36px; overflow: hidden;">
+              <span style="color: #64748b; font-size: 12px;">${formatInline(cardDesc, primary)}</span>
+            </section>
+          </section>
+        </section>
+      `;
+    }).join('');
+
+    return `
+      <section style="margin: 28px 0; box-sizing: border-box;">
+        <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 8px;">
+          <tbody>
+            <tr>
+              <td style="text-align: left; vertical-align: middle; border: none; padding: 0;">
+                <span style="font-size: 13px; font-weight: bold; color: ${primary}; letter-spacing: 0.5px;">
+                  🖼️ 精选图集 · SCROLL GALLERY
+                </span>
+              </td>
+              <td style="text-align: right; vertical-align: middle; border: none; padding: 0;">
+                <span style="font-size: 11px; color: #94a3b8; font-weight: 500;">
+                  👉 手机端左右横滑 ⇄
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <section style="width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; padding: 4px 2px 14px 2px; box-sizing: border-box;">
+          ${cardsHtml}
+        </section>
+      </section>
+    `;
+  }
+
+  // 18. 多宫格矩阵杂志拼图 (严格统一图片比例与尺寸，table-layout fixed 杜绝大小不一与变形) :::gallery-grid
+  if (lowerType === 'gallery-grid' || lowerType === 'grid-gallery') {
+    const lines = content.split('\n').map(s => s.trim()).filter(Boolean);
+    const rawItems = lines.length > 0 && lines[0].includes('||') 
+      ? content.split('||').map(s => s.trim()).filter(Boolean)
+      : lines;
+
+    const items = rawItems.map((item, idx) => {
+      const parts = item.split(/[|｜]/);
+      return {
+        url: parts[0]?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80',
+        title: parts[1]?.trim() || `图集切片 0${idx + 1}`,
+      };
+    });
+
+    // 统一卡片高度配置：高 140px，保持 100% 裁切与严格对齐
+    const CARD_IMG_HEIGHT = 140;
+
+    let gridHtml = '';
+
+    // 1 张图：单图精选大卡呈现
+    if (items.length === 1) {
+      const it = items[0];
+      gridHtml = `
+        <section style="border-radius: 10px; overflow: hidden; background-color: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; max-width: 500px; margin: 0 auto;">
+          <section style="width: 100%; height: 220px; max-height: 220px; overflow: hidden; background-color: #f1f5f9; position: relative;">
+            <img src="${it.url}" alt="${escapeHtml(it.title)}" style="display: block; width: 100% !important; height: 220px !important; min-height: 220px !important; max-height: 220px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+          </section>
+          <section style="padding: 8px 12px; background-color: #f8fafc; font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <span style="color: #334155; font-size: 12px;">${formatInline(it.title, primary)}</span>
+          </section>
+        </section>
+      `;
+    } else {
+      // 2张及以上：严格 2 列矩阵，开启 table-layout: fixed，杜绝任意列挤压或单张图突变成大图
+      const rows = [];
+      for (let i = 0; i < items.length; i += 2) {
+        rows.push(items.slice(i, i + 2));
+      }
+
+      const rowsHtml = rows.map(pair => `
+        <tr>
+          ${pair.map(it => `
+            <td style="width: 50%; vertical-align: top; padding: 0; border: none;">
+              <section style="border-radius: 8px; overflow: hidden; background-color: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); box-sizing: border-box;">
+                <section style="width: 100%; height: ${CARD_IMG_HEIGHT}px; max-height: ${CARD_IMG_HEIGHT}px; overflow: hidden; background-color: #f1f5f9; position: relative;">
+                  <img src="${it.url}" alt="${escapeHtml(it.title)}" style="display: block; width: 100% !important; height: ${CARD_IMG_HEIGHT}px !important; min-height: ${CARD_IMG_HEIGHT}px !important; max-height: ${CARD_IMG_HEIGHT}px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                </section>
+                <section style="padding: 7px 8px; background-color: #f8fafc; font-size: 11px; font-weight: 600; text-align: center; height: 28px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">
+                  <span style="color: #334155; font-size: 11px;">${formatInline(it.title, primary)}</span>
+                </section>
+              </section>
+            </td>
+          `).join('')}
+          ${pair.length === 1 ? '<td style="width: 50%; vertical-align: top; padding: 0; border: none;"></td>' : ''}
+        </tr>
+      `).join('');
+
+      gridHtml = `
+        <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 8px 8px; border: none; margin: 0; padding: 0; background: transparent;">
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      `;
+    }
+
+    return `
+      <section style="margin: 26px 0; box-sizing: border-box;">
+        <section style="font-size: 12px; font-weight: bold; margin-bottom: 8px; letter-spacing: 0.5px;">
+          <span style="color: ${primary}; font-size: 12px; font-weight: bold;">📸 杂志矩阵画廊 · GRID ALBUM</span>
+        </section>
+        ${gridHtml}
+      </section>
+    `;
+  }
+
+  // 19. 双图对照避坑 VS 标杆卡片 :::gallery-compare
+  if (lowerType === 'gallery-compare' || lowerType === 'compare-gallery') {
+    const lines = content.split('\n').map(s => s.trim()).filter(Boolean);
+    const item1 = lines[0] ? lines[0].split(/[|｜]/) : [];
+    const item2 = lines[1] ? lines[1].split(/[|｜]/) : [];
+
+    const label1 = item1[0]?.trim() || '❌ 避坑反面示范';
+    const url1 = item1[1]?.trim() || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80';
+    const desc1 = item1[2]?.trim() || '排版密密麻麻，缺乏视觉重心与结构留白';
+
+    const label2 = item2[0]?.trim() || '✔️ 标杆破局解法';
+    const url2 = item2[1]?.trim() || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80';
+    const desc2 = item2[2]?.trim() || '层次分明，利用组件与呼吸感引导完读率';
+
+    return `
+      <section style="margin: 28px 0; box-sizing: border-box;">
+        <table style="width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 8px 0; border: none; margin: 0; padding: 0; background: transparent;">
+          <tbody>
+            <tr>
+              <!-- 左侧避坑 -->
+              <td style="width: 50%; vertical-align: top; border: 1px solid #fecdd3; background-color: #fff1f2; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+                <section style="font-size: 12px; font-weight: bold; color: #e11d48; margin-bottom: 6px; text-align: center;">
+                  <span style="color: #e11d48; font-size: 12px; font-weight: bold;">${formatInline(label1, '#e11d48')}</span>
+                </section>
+                <section style="border-radius: 8px; overflow: hidden; margin-bottom: 8px; height: 120px; max-height: 120px; background-color: #ffe4e6; position: relative;">
+                  <img src="${url1}" alt="${escapeHtml(label1)}" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                </section>
+                <section style="font-size: 11px; line-height: 1.5; color: #9f1239; text-align: justify;">
+                  <span style="color: #9f1239; font-size: 11px;">${formatInline(desc1, '#e11d48')}</span>
+                </section>
+              </td>
+              <!-- 右侧标杆 -->
+              <td style="width: 50%; vertical-align: top; border: 1px solid #bbf7d0; background-color: #f0fdf4; border-radius: 12px; padding: 10px; box-sizing: border-box;">
+                <section style="font-size: 12px; font-weight: bold; color: #16a34a; margin-bottom: 6px; text-align: center;">
+                  <span style="color: #16a34a; font-size: 12px; font-weight: bold;">${formatInline(label2, '#16a34a')}</span>
+                </section>
+                <section style="border-radius: 8px; overflow: hidden; margin-bottom: 8px; height: 120px; max-height: 120px; background-color: #dcfce7; position: relative;">
+                  <img src="${url2}" alt="${escapeHtml(label2)}" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                </section>
+                <section style="font-size: 11px; line-height: 1.5; color: #166534; text-align: justify;">
+                  <span style="color: #166534; font-size: 11px;">${formatInline(desc2, '#16a34a')}</span>
+                </section>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  // 20. 拍立得复古宝丽来文艺影集 :::gallery-polaroid
+  if (lowerType === 'gallery-polaroid' || lowerType === 'polaroid') {
+    const parts = content.split(/[|｜]/);
+    const imgUrl = parts[0]?.trim() || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80';
+    const caption = parts[1]?.trim() || '漫步在初秋微风的落日余晖里';
+    const timeLocation = parts[2]?.trim() || '2026.09 · SHANGHAI MEMORY';
+
+    return `
+      <section style="margin: 32px auto; max-width: 460px; padding: 14px 14px 20px 14px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); box-sizing: border-box; text-align: center;">
+        <section style="width: 100%; height: 260px; overflow: hidden; background-color: #f1f5f9; border-radius: 2px;">
+          <img src="${imgUrl}" alt="${escapeHtml(caption)}" style="display: block; width: 100%; height: 100%; object-fit: cover;" />
+        </section>
+        <section style="margin-top: 14px; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; font-family: -apple-system, sans-serif; text-align: center;">
+          <span style="color: #1e293b; font-size: 14px; font-weight: bold;">${formatInline(caption, primary)}</span>
+        </section>
+        <section style="margin-top: 6px; font-size: 10px; letter-spacing: 1.5px; font-family: Menlo, Monaco, monospace; text-transform: uppercase; text-align: center;">
+          <span style="color: #94a3b8; font-size: 10px;">${formatInline(timeLocation, primary)}</span>
+        </section>
+      </section>
+    `;
+  }
+
+  // ==================== 微信黑科技 SVG 交互组件系列 (彻底杜绝 foreignObject) ====================
+
+  // 21. 微信黑科技：点击变身卡片 :::svg-morph
   // 利用微信原生 SVG 的 animate 触发机制，读者轻触上层封面，上层瞬间隐去露出下层真相
   if (lowerType === 'svg-morph') {
     const parts = content.split(/[|｜]/);
@@ -497,17 +722,13 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
     return `
       <section style="margin: 28px 0; text-align: center; box-sizing: border-box;">
-        <svg viewBox="0 0 600 220" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); background: #0f172a;" xmlns="http://www.w3.org/2000/svg">
-          <!-- 下层底板：揭示后的精彩内容 -->
+        <svg viewBox="0 0 600 220" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); background-color: #0f172a;" xmlns="http://www.w3.org/2000/svg">
+          <!-- 下层底板：揭示后的精彩内容 (采用 100% 兼容的 SVG text/tspan 绝不丢失) -->
           <g>
             <rect width="600" height="220" fill="#f8fafc" />
             <rect x="15" y="15" width="570" height="190" rx="10" fill="#ffffff" stroke="${primary}" stroke-width="2" stroke-dasharray="6,4" />
             <text x="300" y="60" text-anchor="middle" font-size="14" font-weight="bold" fill="${primary}" letter-spacing="2">★ 揭秘成功 · INSIGHT UNLOCKED ★</text>
-            <foreignObject x="40" y="75" width="520" height="120">
-              <div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 15px; font-weight: bold; color: #1e293b; line-height: 1.6; text-align: center; padding: 10px; display: flex; align-items: center; justify-content: center; height: 100%; box-sizing: border-box;">
-                ${escapeHtml(revealText)}
-              </div>
-            </foreignObject>
+            ${renderSvgMultilineText(revealText, 300, 110, 26, 22, '#1e293b', 15, 'bold')}
           </g>
 
           <!-- 上层盖板：点击前悬念封面 (点击即变身消失) -->
@@ -520,17 +741,17 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
             <text x="300" y="145" text-anchor="middle" font-size="16" font-weight="bold" fill="#ffffff" letter-spacing="1">${escapeHtml(coverText)}</text>
             <text x="300" y="175" text-anchor="middle" font-size="12" fill="#94a3b8" letter-spacing="1">⚡ 轻触卡片触发点击变身</text>
 
-            <!-- 微信原生黑科技动画：点击淡出并隐藏上层 -->
-            <animate attributeName="opacity" begin="click" from="1" to="0" dur="0.25s" fill="freeze" restart="never" />
-            <animate attributeName="transform" begin="click" type="scale" from="1" to="0.95" dur="0.25s" fill="freeze" restart="never" />
-            <animate attributeName="display" begin="click" from="inline" to="none" dur="0.26s" fill="freeze" restart="never" />
+            <!-- 微信原生黑科技动画：点击/轻触淡出并隐藏上层 -->
+            <animate attributeName="opacity" begin="click; touchstart" from="1" to="0" dur="0.25s" fill="freeze" restart="never" />
+            <animate attributeName="transform" begin="click; touchstart" type="scale" from="1" to="0.95" dur="0.25s" fill="freeze" restart="never" />
+            <animate attributeName="display" begin="click; touchstart" from="inline" to="none" dur="0.26s" fill="freeze" restart="never" />
           </g>
         </svg>
       </section>
     `;
   }
 
-  // 18. 微信黑科技：长按蓄力卡片 :::svg-charge
+  // 22. 微信黑科技：长按蓄力卡片 :::svg-charge
   if (lowerType === 'svg-charge') {
     const parts = content.split(/[|｜]/);
     const holdPrompt = parts[0]?.trim() || '按住蓄力 · 充能解开终极锦囊';
@@ -538,102 +759,139 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
     return `
       <section style="margin: 28px 0; text-align: center; box-sizing: border-box;">
-        <svg viewBox="0 0 600 230" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1); background: #1e1b4b;" xmlns="http://www.w3.org/2000/svg">
-          <!-- 背景底色 -->
-          <rect width="600" height="230" fill="#18181b" />
-          <rect x="12" y="12" width="576" height="206" rx="10" fill="#1e1e24" stroke="#4338ca" stroke-width="1.5" />
-
-          <!-- 底层揭示彩蛋 -->
+        <svg viewBox="0 0 600 240" style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.18); background-color: #090d16;" xmlns="http://www.w3.org/2000/svg">
+          <!-- 底层：终极破局彩蛋（蓄力满格后露出，采用原生矢量 text 绝不顺色丢失） -->
           <g>
-            <text x="300" y="65" text-anchor="middle" font-size="13" font-weight="bold" fill="#818cf8" letter-spacing="2">🔋 蓄力释放 · POWER RELEASED</text>
-            <foreignObject x="30" y="80" width="540" height="120">
-              <div xmlns="http://www.w3.org/1999/xhtml" style="font-size: 15px; font-weight: bold; color: #e0e7ff; line-height: 1.6; text-align: center; padding: 10px; display: flex; align-items: center; justify-content: center; height: 100%; box-sizing: border-box;">
-                ${escapeHtml(eggText)}
-              </div>
-            </foreignObject>
+            <rect width="600" height="240" fill="#0d1117" />
+            <!-- 金光流转双边框 -->
+            <rect x="14" y="14" width="572" height="212" rx="12" fill="#161b22" stroke="#f59e0b" stroke-width="1.8" />
+            <rect x="18" y="18" width="564" height="204" rx="10" fill="none" stroke="#fbbf24" stroke-width="0.8" opacity="0.4" stroke-dasharray="6,4" />
+
+            <!-- 顶部荣誉标识 -->
+            <g>
+              <rect x="210" y="24" width="180" height="26" rx="13" fill="#78350f" stroke="#f59e0b" stroke-width="1" />
+              <text x="300" y="41" text-anchor="middle" font-size="12" font-weight="bold" fill="#fef3c7" letter-spacing="1">✨ 蓄力满格 · 终极认知</text>
+            </g>
+
+            <!-- 核心破局干货文本 -->
+            ${renderSvgMultilineText(eggText, 300, 105, 26, 22, '#f8fafc', 15, 'bold')}
+
+            <!-- 底部小字引导 -->
+            <text x="300" y="210" text-anchor="middle" font-size="11" fill="#94a3b8" letter-spacing="0.5">
+              💡 深度思维已为你解锁 · 建议星标置顶复习
+            </text>
           </g>
 
-          <!-- 顶层遮罩与长按蓄力能量环 -->
+          <!-- 顶层交互遮罩与长按高能充能电浆系统 -->
           <g style="cursor: pointer;">
-            <rect width="600" height="230" fill="#09090b" opacity="0.96" />
-            <!-- 蓄力能量条轨道 -->
-            <rect x="150" y="110" width="300" height="12" rx="6" fill="#27272a" />
-            <!-- 蓄力充能进度条动画 -->
-            <rect x="150" y="110" width="0" height="12" rx="6" fill="#6366f1">
-              <animate attributeName="width" begin="click" from="0" to="300" dur="0.8s" fill="freeze" restart="never" />
-              <animate attributeName="fill" begin="click" from="#6366f1" to="#a855f7" dur="0.8s" fill="freeze" restart="never" />
-            </rect>
+            <rect width="600" height="240" fill="#090d16" />
+            <rect x="14" y="14" width="572" height="212" rx="12" fill="#111827" stroke="#4f46e5" stroke-width="1.6" />
 
-            <!-- 蓄力图标 -->
-            <circle cx="300" cy="65" r="22" fill="#18181b" stroke="#6366f1" stroke-width="2" />
-            <text x="300" y="72" text-anchor="middle" font-size="18" fill="#a5b4fc">⚡</text>
+            <!-- 核心能量徽标图标与动态蓄能光环 -->
+            <circle cx="300" cy="56" r="24" fill="#1e1b4b" stroke="#6366f1" stroke-width="2">
+              <animate attributeName="stroke" begin="mousedown; touchstart; click" values="#6366f1; #a855f7; #ec4899; #fbbf24" keyTimes="0; 0.35; 0.7; 1" dur="1.3s" fill="freeze" restart="never" />
+            </circle>
+            <text x="300" y="64" text-anchor="middle" font-size="20" fill="#c7d2fe">⚡</text>
 
-            <text x="300" y="155" text-anchor="middle" font-size="15" font-weight="bold" fill="#ffffff" letter-spacing="1">
+            <!-- 提示文案 -->
+            <text x="300" y="104" text-anchor="middle" font-size="16" font-weight="bold" fill="#ffffff" letter-spacing="1">
               ${escapeHtml(holdPrompt)}
             </text>
-            <text x="300" y="185" text-anchor="middle" font-size="11" fill="#71717a" letter-spacing="0.5">
-              👇 点击/按住卡片蓄力充满能量条
+            <text x="300" y="126" text-anchor="middle" font-size="12" fill="#94a3b8" letter-spacing="0.5">
+              👇 手指长按 / 按住卡片启动高能蓄力
             </text>
 
-            <!-- 蓄满后淡出顶层盖板 -->
-            <animate attributeName="opacity" begin="click+0.85s" from="0.96" to="0" dur="0.3s" fill="freeze" restart="never" />
-            <animate attributeName="display" begin="click+1.1s" from="inline" to="none" dur="0.01s" fill="freeze" restart="never" />
+            <!-- 蓄力能量轨道背景槽 -->
+            <rect x="110" y="144" width="380" height="18" rx="9" fill="#0f172a" stroke="#334155" stroke-width="1.2" />
+            <!-- 刻度线细节 -->
+            <line x1="205" y1="145" x2="205" y2="161" stroke="#1e293b" stroke-width="1" />
+            <line x1="300" y1="145" x2="300" y2="161" stroke="#1e293b" stroke-width="1" />
+            <line x1="395" y1="145" x2="395" y2="161" stroke="#1e293b" stroke-width="1" />
+
+            <!-- 蓄力充能电浆流 -->
+            <rect x="110" y="144" width="0" height="18" rx="9" fill="#3b82f6">
+              <animate attributeName="width" begin="mousedown; touchstart; click" from="0" to="380" dur="1.3s" fill="freeze" restart="never" calcMode="spline" keySplines="0.25 0.1 0.25 1" />
+              <animate attributeName="fill" begin="mousedown; touchstart; click" values="#3b82f6; #8b5cf6; #ec4899; #fbbf24" keyTimes="0; 0.35; 0.7; 1" dur="1.3s" fill="freeze" restart="never" />
+            </rect>
+
+            <!-- 能量前端喷射流星高光球 -->
+            <circle cx="110" cy="153" r="10" fill="#ffffff" opacity="0">
+              <animate attributeName="opacity" begin="mousedown; touchstart; click" values="0; 0.95; 0.95; 1" keyTimes="0; 0.05; 0.95; 1" dur="1.3s" fill="freeze" restart="never" />
+              <animate attributeName="cx" begin="mousedown; touchstart; click" from="110" to="490" dur="1.3s" fill="freeze" restart="never" calcMode="spline" keySplines="0.25 0.1 0.25 1" />
+              <animate attributeName="r" begin="mousedown; touchstart; click" values="9; 12; 9; 13; 10" dur="0.32s" repeatCount="4" />
+            </circle>
+
+            <!-- 实时充能状态动态反馈提示 -->
+            <g>
+              <text x="300" y="188" text-anchor="middle" font-size="11" font-weight="bold" fill="#64748b" letter-spacing="1">
+                ENERGY: 0% [READY TO CHARGE]
+                <animate attributeName="opacity" begin="mousedown; touchstart; click" to="0" dur="0.05s" fill="freeze" restart="never" />
+              </text>
+              <text x="300" y="188" text-anchor="middle" font-size="11" font-weight="bold" fill="#818cf8" letter-spacing="1" opacity="0">
+                ⚡ CHARGING: 35% · 正在聚合能量...
+                <animate attributeName="opacity" begin="mousedown; touchstart; click" values="0; 1; 1; 0" keyTimes="0; 0.05; 0.95; 1" dur="0.45s" fill="freeze" restart="never" />
+              </text>
+              <text x="300" y="188" text-anchor="middle" font-size="11" font-weight="bold" fill="#c084fc" letter-spacing="1" opacity="0">
+                ⚡ CHARGING: 75% · 即将突破壁垒!
+                <animate attributeName="opacity" begin="mousedown+0.45s; touchstart+0.45s; click+0.45s" values="0; 1; 1; 0" keyTimes="0; 0.05; 0.95; 1" dur="0.5s" fill="freeze" restart="never" />
+              </text>
+              <text x="300" y="188" text-anchor="middle" font-size="12" font-weight="bold" fill="#fbbf24" letter-spacing="1.5" opacity="0">
+                🔥 100% MAXIMUM OVERDRIVE!
+                <animate attributeName="opacity" begin="mousedown+0.95s; touchstart+0.95s; click+0.95s" values="0; 1; 1" keyTimes="0; 0.1; 1" dur="0.35s" fill="freeze" restart="never" />
+              </text>
+            </g>
+
+            <!-- 蓄满终极大招：白光冲击波爆炸光晕 -->
+            <rect width="600" height="240" fill="#ffffff" opacity="0">
+              <animate attributeName="opacity" begin="mousedown+1.3s; touchstart+1.3s; click+1.3s" values="0; 0.88; 0" keyTimes="0; 0.25; 1" dur="0.25s" fill="freeze" restart="never" />
+            </rect>
+
+            <animate attributeName="opacity" begin="mousedown+1.4s; touchstart+1.4s; click+1.4s" from="1" to="0" dur="0.3s" fill="freeze" restart="never" />
+            <animate attributeName="display" begin="mousedown+1.7s; touchstart+1.7s; click+1.7s" from="inline" to="none" dur="0.01s" fill="freeze" restart="never" />
           </g>
         </svg>
       </section>
     `;
   }
 
-  // 19. 微信黑科技：折叠画卷展开 :::svg-unfold
-  // 默认优雅收起，读者轻触“点击展开长卷”，画卷向下延伸呈现完整详尽图文
+  // 23. 微信黑科技：折叠画卷展开 :::svg-unfold
   if (lowerType === 'svg-unfold') {
     const parts = content.split(/[|｜]/);
     const unfoldTitle = parts[0]?.trim() || '📜 点击展开完整长卷与详细实操大纲';
     const detailContent = parts.slice(1).join('｜').trim() || '这里是展开后展现的完整知识图谱、详细方法论与关键实操指引，长篇干货一览无余。';
 
     return `
-      <section style="margin: 28px 0; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04); background: #ffffff; box-sizing: border-box;">
-        <!-- 卷轴顶部标头 -->
+      <section style="margin: 28px 0; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04); background-color: #ffffff; box-sizing: border-box;">
         <div style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
           <span style="font-size: 14px; font-weight: bold; color: ${textColor}; display: flex; align-items: center; gap: 6px;">
             📜 ${formatInline(unfoldTitle, primary)}
           </span>
-          <span style="font-size: 11px; color: #94a3b8; font-family: monospace;">点击下方手柄展开</span>
+          <span style="font-size: 11px; color: #94a3b8; font-family: monospace;">点击展开</span>
         </div>
 
-        <!-- 可展开的内容区域 (利用微信原生 SVG height 延伸机制) -->
-        <svg viewBox="0 0 600 320" style="width: 100%; max-width: 600px; height: 110px; display: block; margin: 0 auto; overflow: hidden; transition: all 0.3s ease;" xmlns="http://www.w3.org/2000/svg">
-          <animate attributeName="height" begin="click" from="110px" to="320px" dur="0.35s" fill="freeze" restart="never" />
+        <svg viewBox="0 0 600 280" style="width: 100%; max-width: 600px; height: 100px; display: block; margin: 0 auto; overflow: hidden; transition: all 0.3s ease; background-color: #ffffff;" xmlns="http://www.w3.org/2000/svg">
+          <animate attributeName="height" begin="click; touchstart" from="100px" to="280px" dur="0.35s" fill="freeze" restart="never" />
 
-          <!-- 内容主体 -->
-          <foreignObject x="20" y="10" width="560" height="250">
-            <div xmlns="http://www.w3.org/1999/xhtml" style="font-size: ${fontSize - 1}px; line-height: 1.8; color: ${textColor}; padding: 12px; text-align: justify;">
-              ${escapeHtml(detailContent)}
-            </div>
-          </foreignObject>
-
-          <!-- 底部渐变遮罩与“点击展开”按钮提示 (展开后淡出) -->
-          <g style="cursor: pointer;">
-            <rect x="0" y="30" width="600" height="80" fill="url(#unfoldFadeGrad)" opacity="0.95" />
-            <rect x="220" y="65" width="160" height="32" rx="16" fill="${primary}" />
-            <text x="300" y="86" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffffff">▼ 点击展开长卷</text>
-
-            <animate attributeName="opacity" begin="click" from="0.95" to="0" dur="0.25s" fill="freeze" restart="never" />
-            <animate attributeName="display" begin="click+0.25s" from="inline" to="none" dur="0.01s" fill="freeze" restart="never" />
+          <!-- 内容矢量文字 -->
+          <g>
+            ${renderSvgMultilineText(detailContent, 300, 36, 26, 24, textColor, 14, 'normal')}
           </g>
 
-          <defs>
-            <linearGradient id="unfoldFadeGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.1" />
-              <stop offset="100%" stop-color="#ffffff" stop-opacity="1" />
-            </linearGradient>
-          </defs>
+          <!-- 底部渐变遮罩与“点击展开”按钮提示 -->
+          <g style="cursor: pointer;">
+            <rect x="0" y="25" width="600" height="75" fill="#ffffff" opacity="0.9" />
+            <rect x="220" y="55" width="160" height="32" rx="16" fill="${primary}" />
+            <text x="300" y="76" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffffff">▼ 点击展开长卷</text>
+
+            <animate attributeName="opacity" begin="click; touchstart" from="0.9" to="0" dur="0.25s" fill="freeze" restart="never" />
+            <animate attributeName="display" begin="click+0.25s; touchstart+0.25s" from="inline" to="none" dur="0.01s" fill="freeze" restart="never" />
+          </g>
         </svg>
       </section>
     `;
   }
 
-  // 20. 微信横向滑动相册卡片走马灯 :::svg-scroll
+  // 24. 微信横向滑动相册卡片走马灯 :::svg-scroll
   if (lowerType === 'svg-scroll') {
     const rawCards = content.split('||').map(s => s.trim()).filter(Boolean);
     const cardsHtml = rawCards.map((c, i) => {
@@ -641,12 +899,12 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       const title = parts[0]?.trim() || `核心亮点 0${i + 1}`;
       const desc = parts.slice(1).join('：').trim() || c;
       return `
-        <div style="display: inline-block; vertical-align: top; width: 220px; white-space: normal; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-right: 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+        <div style="display: inline-block; vertical-align: top; width: 220px; white-space: normal; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-right: 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
           <div style="font-size: 13px; font-weight: bold; color: ${primary}; margin-bottom: 6px;">
-            ${formatInline(title, primary)}
+            <span style="color: ${primary}; font-weight: bold;">${formatInline(title, primary)}</span>
           </div>
           <div style="font-size: 12px; line-height: 1.6; color: #475569; text-align: justify;">
-            ${formatInline(desc, primary)}
+            <span style="color: #475569;">${formatInline(desc, primary)}</span>
           </div>
         </div>
       `;
@@ -764,22 +1022,22 @@ export function formatToWechatHtml(markdown = '', options = {}) {
         inCodeBlock = false;
         const codeContent = escapeHtml(codeBuffer.join('\n'));
         htmlParts.push(`
-          <section style="margin:20px 0;border-radius:10px;overflow:hidden;background:#1e1e1e;box-shadow:0 4px 16px rgba(0,0,0,0.15);box-sizing:border-box;">
-            <table style="width:100%;background:#2d2d2d;border-bottom:1px solid #3d3d3d;border-collapse:collapse;border:none;padding:0;margin:0;">
+          <section style="margin:20px 0;border-radius:10px;overflow:hidden;background-color:#1e1e1e;box-shadow:0 4px 16px rgba(0,0,0,0.15);box-sizing:border-box;">
+            <table style="width:100%;background-color:#2d2d2d;border-bottom:1px solid #3d3d3d;border-collapse:collapse;border:none;padding:0;margin:0;">
               <tbody>
                 <tr>
-                  <td style="padding:8px 14px;vertical-align:middle;border:none;">
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ff5f56;margin-right:6px;vertical-align:middle;"></span>
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#ffbd2e;margin-right:6px;vertical-align:middle;"></span>
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#27c93f;vertical-align:middle;"></span>
+                  <td style="padding:8px 14px;vertical-align:middle;border:none;background-color:#2d2d2d;">
+                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;margin-right:6px;vertical-align:middle;"></span>
+                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;margin-right:6px;vertical-align:middle;"></span>
+                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;vertical-align:middle;"></span>
                   </td>
-                  <td style="padding:8px 14px;text-align:right;vertical-align:middle;border:none;">
-                    <span style="font-size:11px;color:#9ca3af;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;">${codeLang || 'code'}</span>
+                  <td style="padding:8px 14px;text-align:right;vertical-align:middle;border:none;background-color:#2d2d2d;">
+                    <span style="font-size:11px;color:#9ca3af;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:600;">${codeLang || 'code'}</span>
                   </td>
                 </tr>
               </tbody>
             </table>
-            <pre style="margin:0;padding:14px 16px;overflow-x:auto;color:#d4d4d4;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.6;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code>${codeContent}</code></pre>
+            <pre style="margin:0;padding:14px 16px;overflow-x:auto;background-color:#1e1e1e;color:#e2e8f0;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.65;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code style="background-color:#1e1e1e;color:#e2e8f0;font-family:inherit;">${codeContent}</code></pre>
           </section>
         `);
         codeBuffer = [];
@@ -982,10 +1240,10 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 11. 普通段落
+    // 11. 普通段落（双保险：内层包裹显式 span，彻底避免微信插入全局默认深灰黑）
     htmlParts.push(`
       <p style="margin:16px 0;font-size:${fontSize}px;line-height:${lineHeight};letter-spacing:0.5px;color:${textColor};text-align:justify;word-break:break-word;box-sizing:border-box;">
-        ${formatInline(trimmed, primary)}
+        <span style="color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};">${formatInline(trimmed, primary)}</span>
       </p>
     `);
   }
@@ -1005,11 +1263,11 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   flushList();
   flushTable();
 
-  // 组装总微信容器 (宽度 100% / 最大 677px 微信标准)
+  // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，保证微信 UEditor 零清洗)
   return `
-    <div class="wechat-format-container" style="max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;">
+    <section class="wechat-format-container" style="max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;">
       ${htmlParts.join('\n')}
-    </div>
+    </section>
   `.trim();
 }
 

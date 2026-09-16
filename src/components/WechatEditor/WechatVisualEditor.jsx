@@ -8,6 +8,7 @@ import {
   Maximize2,
   Minimize2,
   Image as ImageIcon,
+  Images,
   Heading1,
   Heading2,
   Heading3,
@@ -33,6 +34,8 @@ import {
   X,
   Plus,
   Loader2,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { WECHAT_THEMES, formatToWechatHtml } from '../../lib/wechatFormatter.js';
 import { ImagePickerModal } from '../ImagePickerModal.jsx';
@@ -40,7 +43,7 @@ import { ShimmerButton } from '../ui/ShimmerButton.jsx';
 
 const SAMPLE_ARTICLE_MD = `# 深度复盘：打破自嗨认知，构建高转化爆款工作流
 
-:::lead 本文核心要点：从底层逻辑解构爆款传播机制，深度拆解「选题预判、结构情绪流、内联交互赋能」三位一体实操框架。:::
+:::lead 本文核心要点：从底层逻辑解构爆款传播机制，深度拆解「选题预判、结构情绪流、全景图册与内联交互赋能」四位一体实操框架。:::
 
 ## 一、为什么大多数人的努力只是「低水平重复」？
 
@@ -52,9 +55,37 @@ const SAMPLE_ARTICLE_MD = `# 深度复盘：打破自嗨认知，构建高转化
 
 ---
 
-## 二、爆款核心方法论：黑科技交互赋能
+## 二、全景图册赋能：手机端原生交互画廊
 
-在当下信息爆炸时代，读者在屏幕前的注意力极其稀缺。善用微信公众号原生支持的交互 SVG 模版，能瞬间将读者从「被动阅读」转为「主动探索」：
+微信公众号原生支持左右横滑手势相册与多宫格杂志拼图，有效利用有限屏幕打破视觉疲劳，大幅拉升完读停留时长：
+
+:::gallery-scroll
+https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 极简艺术空间 | 探索空间与留白的平衡艺术，打造高级视觉心智
+https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 流光渐变数字化 | 前沿色彩搭配与动态构图，激发读者停留时长
+https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 旷野纪实摄影 | 捕捉自然界光影与质感，以真实情绪打动受众
+:::
+
+:::gallery-grid
+https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 灵感构思
+https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 视觉迭代
+https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 空间布局
+https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80 | 最终交付
+:::
+
+:::gallery-compare
+❌ 传统避坑做法 | https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 元素堆砌密集，缺乏视觉重心与呼吸感，读者容易跳出
+✔️ 爆款标杆示范 | https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 结构层次分明，黄金留白让重点吸睛，完读率大幅提升
+:::
+
+:::gallery-polaroid
+https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 漫步在初秋微风的落日余晖里 | 2026.09 · SHANGHAI MEMORY
+:::
+
+---
+
+## 三、爆款核心方法论：黑科技交互赋能
+
+善用微信公众号原生支持的交互 SVG 模版，能瞬间将读者从「被动阅读」转为「主动探索」：
 
 :::svg-morph 👉 点击此处，揭秘关键底层认知！ | 🎉 恭喜揭秘：真正的认知跃迁，不是积累更多信息，而是升级底层思考模型！:::
 
@@ -66,7 +97,7 @@ const SAMPLE_ARTICLE_MD = `# 深度复盘：打破自嗨认知，构建高转化
 
 ---
 
-## 三、真实问答与发展演进
+## 四、真实问答与发展演进
 
 :::qa 读者提问：请问内容创作新手，最容易踩的坑是什么？ | 主理人回答：最容易踩的坑是「自嗨式写作」——沉迷于自己觉得很厉害的内容，却忽略了读者真正关心的痛点与情绪共鸣。:::
 
@@ -174,6 +205,43 @@ const WECHAT_COMPONENTS = [
     desc: '带票据边框的案例剖析与深度拆解',
     icon: '🧾',
     template: '\n:::card 案例对照：传统思维就事论事 VS 爆款逻辑直击痛点并给出闭环方案:::\n',
+  },
+  // ================= 全网流行图册组件 (Gallery) =================
+  {
+    id: 'gallery-scroll',
+    category: 'gallery',
+    name: '横滑焦点相册 (Banner轮播)',
+    tag: ':::gallery-scroll',
+    desc: '微信原生横向手势平滑滚动图册，带标题与描述',
+    icon: '🎠',
+    template: `\n:::gallery-scroll\nhttps://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 极简艺术空间 | 探索空间与留白的平衡艺术\nhttps://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 流光渐变数字化 | 前沿色彩搭配与动态构图\nhttps://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 旷野自然纪实 | 捕捉自然界光影与纯粹质感\n:::\n`,
+  },
+  {
+    id: 'gallery-grid',
+    category: 'gallery',
+    name: '多宫格杂志拼图 (2/4宫格)',
+    tag: ':::gallery-grid',
+    desc: '矩阵对齐拼贴，微缝隙圆角，微信100%不断行',
+    icon: '▦',
+    template: `\n:::gallery-grid\nhttps://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 灵感构思\nhttps://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 视觉迭代\nhttps://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 空间布局\nhttps://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80 | 最终交付\n:::\n`,
+  },
+  {
+    id: 'gallery-compare',
+    category: 'gallery',
+    name: '双图对比卡 (避坑 VS 标杆)',
+    tag: ':::gallery-compare',
+    desc: '左栏避坑错误 VS 右栏标杆示范，强烈对照',
+    icon: '⚖️',
+    template: `\n:::gallery-compare\n❌ 常见避坑做法 | https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80 | 元素堆砌密集，缺乏视觉重心与呼吸感\n✔️ 推荐标杆解法 | https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80 | 结构层次分明，黄金留白让重点瞬间吸睛\n:::\n`,
+  },
+  {
+    id: 'gallery-polaroid',
+    category: 'gallery',
+    name: '拍立得复古宝丽来影集',
+    tag: ':::gallery-polaroid',
+    desc: '拍立得相纸白边、微立体阴影、居中手写图注与时间戳',
+    icon: '📷',
+    template: `\n:::gallery-polaroid\nhttps://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80 | 漫步在初秋微风的落日余晖里 | 2026.09 · SHANGHAI MEMORY\n:::\n`,
   },
   // ================= 微信黑科技 SVG 交互模版 =================
   {
@@ -289,6 +357,7 @@ const WECHAT_COMPONENTS = [
 
 const COMPONENT_CATEGORIES = [
   { id: 'all', label: '全部' },
+  { id: 'gallery', label: '🖼️ 流行图册' },
   { id: 'svg', label: '🚀 黑科技SVG' },
   { id: 'quote', label: '📐 金句高光' },
   { id: 'structure', label: '📱 结构对话' },
@@ -307,6 +376,7 @@ export function WechatVisualEditor({
   const [fontSize, setFontSize] = useState(15);
   const [lineHeight, setLineHeight] = useState(1.8);
   const [viewMode, setViewMode] = useState('dual'); // 'dual' | 'editor' | 'preview'
+  const [isDarkModePreview, setIsDarkModePreview] = useState(false); // 微信深色模式 (Dark Mode) 模拟开关
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
   const [isComponentsDropdownOpen, setIsComponentsDropdownOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -490,28 +560,79 @@ export function WechatVisualEditor({
     onShowToast?.(`已成功插入商用无版权配图：${img.title || '高清配图'}`);
   };
 
-  // 一键复制富文本到公众号
+  // 一键复制富文本到公众号（行业顶级标准：原生 copy 事件劫持 + 剪贴板注入，彻底绕过浏览器 Sanitizer，保留 100% 内联样式与盒模型）
   const handleCopyWechatHtml = async () => {
     if (!wechatHtml) return onShowToast?.('暂无可复制的内容');
 
+    // 标准化微信富文本 Fragment
+    const standardHtml = `<html><head><meta charset="utf-8"></head><body><!--StartFragment-->${wechatHtml}<!--EndFragment--></body></html>`;
+    const plainText = extractPlainText(wechatHtml);
+    let copied = false;
+
+    // 方案 1 (行业黄金标准 - Doocs / MdNice / 135编辑器 方案):
+    // 监听原生 copy 事件并劫持 clipboardData，绕过现代浏览器 navigator.clipboard.write 强制执行的 HTML Sanitizer，
+    // 确保 100% 原始字节级内联样式、盒模型、overflow-x 属性完整送达操作系统剪贴板
     try {
-      // 写入富文本剪贴板
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([wechatHtml], { type: 'text/html' }),
-          'text/plain': new Blob([extractPlainText(wechatHtml)], { type: 'text/plain' }),
-        }),
-      ]);
-      setCopyStatus('✅ 已成功复制富文本！配图支持微信云端自动转存，去微信公众号后台 Cmd/Ctrl + V 粘贴即可');
-      onShowToast?.('🎉 微信富文本复制成功！配图支持微信云端自动转存，直接在公众号后台粘贴生效！');
-    } catch {
-      // 降级复制
-      const ta = document.createElement('textarea');
-      ta.value = wechatHtml;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
+      const copyListener = (e) => {
+        e.preventDefault();
+        e.clipboardData.clearData();
+        e.clipboardData.setData('text/html', standardHtml);
+        e.clipboardData.setData('text/plain', plainText);
+      };
+      document.addEventListener('copy', copyListener, { once: true });
+      copied = document.execCommand('copy');
+      document.removeEventListener('copy', copyListener);
+    } catch (err) {
+      console.warn('Native copy event hijack failed, fallbacking...', err);
+    }
+
+    // 方案 2：若 execCommand 被特殊环境拦截，使用 ClipboardItem API 兜底
+    if (!copied && navigator.clipboard && window.ClipboardItem) {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([standardHtml], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' }),
+          }),
+        ]);
+        copied = true;
+      } catch (e) {
+        console.warn('ClipboardItem API fallback failed:', e);
+      }
+    }
+
+    // 方案 3：隐藏 DOM 选区克隆兜底
+    if (!copied) {
+      try {
+        const container = document.createElement('div');
+        container.innerHTML = wechatHtml;
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.opacity = '0';
+        container.setAttribute('contenteditable', 'true');
+        document.body.appendChild(container);
+
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(container);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        document.execCommand('copy');
+        selection.removeAllRanges();
+        document.body.removeChild(container);
+        copied = true;
+      } catch (err) {
+        console.error('DOM selection copy fallback failed:', err);
+      }
+    }
+
+    if (copied) {
+      setCopyStatus('✅ 已成功复制富文本！已通过微信 100% 格式内联认证，在公众号后台 Cmd/Ctrl + V 粘贴即可');
+      onShowToast?.('🎉 微信富文本复制成功！样式代码已完整复制。（💡提示：由于微信PC编辑框限制，横滑相册需在后台点击右上角「预览」发送到手机端体验手势滑动）');
+    } else {
+      onShowToast?.('复制失败，请尝试在预览区手动全选复制');
     }
   };
 
@@ -1088,37 +1209,60 @@ export function WechatVisualEditor({
 
         {/* Right: WeChat Phone Mockup (677px standard) */}
         {(viewMode === 'dual' || viewMode === 'preview') && (
-          <div className={`${viewMode === 'dual' ? 'lg:col-span-6' : 'lg:col-span-12'} flex flex-col ${isStandaloneMode ? 'h-[780px]' : 'h-[700px]'} rounded-3xl border border-slate-800 bg-[#f7f7f7] overflow-hidden shadow-2xl transition-all`}>
+          <div className={`${viewMode === 'dual' ? 'lg:col-span-6' : 'lg:col-span-12'} flex flex-col ${isStandaloneMode ? 'h-[780px]' : 'h-[700px]'} rounded-3xl border border-slate-800 ${isDarkModePreview ? 'bg-[#191919]' : 'bg-[#f7f7f7]'} overflow-hidden shadow-2xl transition-all`}>
             
             {/* iPhone Top Status Header */}
-            <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 text-center text-xs font-mono text-slate-400 flex items-center justify-between shrink-0">
+            <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 text-center text-xs font-mono text-slate-400 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-1.5">
                 <Smartphone className="w-4 h-4 text-emerald-400" />
                 <span className="text-slate-300 font-semibold">微信公众号标准预览 (677px)</span>
               </div>
-              <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                100% 微信内联格式
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDarkModePreview(!isDarkModePreview)}
+                  className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+                    isDarkModePreview
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                  }`}
+                  title="模拟微信深色模式（Dark Mode），检测夜间文字背景是否顺色"
+                >
+                  {isDarkModePreview ? <Moon className="w-3 h-3 text-amber-400" /> : <Sun className="w-3 h-3 text-slate-400" />}
+                  <span>{isDarkModePreview ? '深色模式模拟' : '夜间顺色检测'}</span>
+                </button>
+                <span className="text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 hidden sm:inline">
+                  100% 微信内联
+                </span>
+              </div>
             </div>
 
             {/* Simulated WeChat Article Header */}
-            <div className="p-4 bg-white border-b border-slate-100 shrink-0">
-              <h1 className="text-lg font-bold text-slate-900 leading-snug">
+            <div className={`p-4 border-b shrink-0 transition-colors ${
+              isDarkModePreview ? 'bg-[#191919] border-neutral-800' : 'bg-white border-slate-100'
+            }`}>
+              <h1 className={`text-lg font-bold leading-snug ${
+                isDarkModePreview ? 'text-neutral-100' : 'text-slate-900'
+              }`}>
                 {articleTitle || '爆款文章标题预览'}
               </h1>
               <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
-                <span className="text-blue-600 font-medium cursor-pointer">公众号官方工坊</span>
+                <span className="text-blue-500 font-medium cursor-pointer">公众号官方工坊</span>
                 <span>•</span>
                 <span>2026-09-01</span>
-                <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 text-[10px]">原创</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] ${
+                  isDarkModePreview ? 'bg-neutral-800 text-neutral-400' : 'bg-slate-100 text-slate-500'
+                }`}>原创</span>
               </div>
             </div>
 
             {/* WeChat Formatted Article Body */}
-            <div className="flex-1 overflow-y-auto p-4 bg-white select-text">
+            <div className={`flex-1 overflow-y-auto p-4 select-text transition-colors ${
+              isDarkModePreview ? 'bg-[#191919]' : 'bg-white'
+            }`}>
               {articleMd ? (
                 <div
-                  className="wechat-preview-body"
+                  className={`wechat-preview-body ${isDarkModePreview ? 'wechat-dark-mode-sim' : ''}`}
                   dangerouslySetInnerHTML={{ __html: wechatHtml }}
                 />
               ) : (
@@ -1130,7 +1274,9 @@ export function WechatVisualEditor({
             </div>
 
             {/* Bottom Footer Tip */}
-            <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-500 text-center flex items-center justify-center gap-2">
+            <div className={`px-4 py-2 border-t text-[11px] text-center flex items-center justify-center gap-2 transition-colors ${
+              isDarkModePreview ? 'bg-[#141414] border-neutral-800 text-neutral-400' : 'bg-slate-100 border-slate-200 text-slate-500'
+            }`}>
               <span>💡 排版已完全内联化，点击上方「一键复制到公众号」即可粘贴至微信编辑器</span>
             </div>
 

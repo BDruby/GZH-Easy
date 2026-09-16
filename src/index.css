@@ -60,3 +60,11 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+/* 微信移动端深色模式 (Dark Mode) 真实渲染模拟 */
+.wechat-dark-mode-sim .wechat-format-container {
+  background-color: #191919 !important;
+  color: #e2e8f0 !important;
+  transition: all 0.3s ease;
+}
+
