@@ -21,7 +21,7 @@ const PRESETS = [
   {
     name: 'DeepSeek 官方',
     baseUrl: 'https://api.deepseek.com',
-    defaultModel: 'deepseek-v4-flash',
+    defaultModel: 'deepseek-chat',
     desc: '超强性价比与深度思考，推荐首选',
     icon: '⚡',
   },
@@ -95,12 +95,12 @@ export function ApiSettingsModal({
   onClose,
   onSave,
   currentConfig,
-  modelsList = ['deepseek-v4-flash', 'deepseek-v4-pro'],
+  modelsList = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o'],
   onUpdateModelsList,
 }) {
   const [baseUrl, setBaseUrl] = useState(currentConfig.baseUrl || 'https://api.deepseek.com');
   const [apiKey, setApiKey] = useState(currentConfig.apiKey || '');
-  const [model, setModel] = useState(currentConfig.model || 'deepseek-v4-flash');
+  const [model, setModel] = useState(currentConfig.model || 'deepseek-chat');
   const [showKey, setShowKey] = useState(false);
 
   const [testing, setTesting] = useState(false);

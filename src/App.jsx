@@ -38,7 +38,7 @@ import { ImagePickerModal } from './components/ImagePickerModal.jsx';
 import { WechatVisualEditor } from './components/WechatEditor/WechatVisualEditor.jsx';
 import { cn } from './lib/utils.js';
 
-const DEFAULT_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+const DEFAULT_MODELS = ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o'];
 const DRAFT_STORAGE_KEY = 'gzh_draft_v2';
 
 export default function App() {
@@ -46,7 +46,7 @@ export default function App() {
   const [config, setConfig] = useState(() => ({
     baseUrl: localStorage.getItem('bs_baseUrl') || 'https://api.deepseek.com',
     apiKey: localStorage.getItem('bs_apiKey') || '',
-    model: localStorage.getItem('bs_model') || 'deepseek-v4-flash',
+    model: localStorage.getItem('bs_model') || 'deepseek-chat',
   }));
 
   // Dynamic models list state

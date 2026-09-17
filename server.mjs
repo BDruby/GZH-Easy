@@ -18,7 +18,7 @@ const DIST = path.join(ROOT, 'dist');
 function loadConfig() {
   const cfg = {
     port: Number(process.env.PORT) || 43121,
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-chat',
     apiKey: process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY || '',
     baseUrl: process.env.OPENAI_BASE_URL || process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
   };
@@ -419,8 +419,19 @@ async function apiArticle(req, res, body) {
       streamedChars += delta.length;
       send({ type: 'delta', text: delta });
     }
+
+    // 智能降级兜底：若部分中转/网关流式 SSE 返回为空，自动尝试非流式降级抓取完整正文
     if (streamedChars === 0) {
-      send({ type: 'error', message: '模型响应为空，未返回任何正文内容。请检查 API 配置或更换模型后重试。' });
+      console.warn(`[apiArticle] 流式响应为空，自动启动非流式降级重试 (model: ${model})...`);
+      const fallbackContent = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens });
+      if (fallbackContent && fallbackContent.trim()) {
+        streamedChars = fallbackContent.length;
+        send({ type: 'delta', text: fallbackContent });
+      }
+    }
+
+    if (streamedChars === 0) {
+      send({ type: 'error', message: `模型 (${model}) 响应为空。请确认该模型名称是否正确，并在设置中输入如 deepseek-chat 或 gpt-4o 等有效模型后重试。` });
     } else {
       send({ type: 'done', totalChars: streamedChars });
     }
