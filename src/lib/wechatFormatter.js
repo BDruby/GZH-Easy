@@ -295,82 +295,70 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // 10. 微信真实对话问答气泡 :::qa（防圆形塌陷：使用固定宽高 section 代替 span 作为头像，保证 100% 正圆）
+  // 10. 微信真实对话问答气泡 :::qa（免 table 纯 section 工业级排版：杜绝微信全局 table 劫持，100% 正圆头像 + 原生微导角气泡）
   if (lowerType === 'qa') {
     const parts = content.split(/[|｜]/);
     const qText = parts[0]?.trim() || '读者提问：请问如何抓住当下的核心破局红利？';
     const aText = parts[1]?.trim() || '主理人回答：核心不是盲目追风，而是用底层逻辑重构你的交付流程。';
     return `
-      <section style="margin: 26px 0; box-sizing: border-box;">
-        <!-- 读者提问行 (左侧) -->
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0 0 14px 0; padding: 0; background: transparent;">
-          <tbody>
-            <tr>
-              <td style="width: 38px; vertical-align: top; padding: 0 10px 0 0; border: none;">
-                <section style="width: 34px; height: 34px; line-height: 34px; border-radius: 17px; background-color: #94a3b8; text-align: center; margin: 0 auto; box-sizing: border-box;">
-                  <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 34px; text-align: center;">问</span>
-                </section>
-              </td>
-              <td style="vertical-align: top; border: none;">
-                <section style="display: inline-block; background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; border-top-left-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; text-align: justify; max-width: 90%; box-sizing: border-box;">
-                  <span style="color: #334155; font-size: ${fontSize - 1}px;">${formatInline(qText, '#2563eb')}</span>
-                </section>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <!-- 主理人回答行 (右侧) -->
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
-          <tbody>
-            <tr>
-              <td style="vertical-align: top; text-align: right; border: none;">
-                <section style="display: inline-block; background-color: ${hexToRgba(primary, 0.12)}; border: 1px solid ${hexToRgba(primary, 0.3)}; border-radius: 12px; border-top-right-radius: 2px; padding: 10px 14px; font-size: ${fontSize - 1}px; line-height: 1.6; text-align: justify; max-width: 90%; box-sizing: border-box;">
-                  <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(aText, primary)}</span>
-                </section>
-              </td>
-              <td style="width: 38px; vertical-align: top; padding: 0 0 0 10px; border: none; text-align: right;">
-                <section style="width: 34px; height: 34px; line-height: 34px; border-radius: 17px; background-color: ${primary}; text-align: center; margin-left: auto; box-sizing: border-box;">
-                  <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 34px; text-align: center;">答</span>
-                </section>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <section style="margin: 28px 0; box-sizing: border-box; clear: both;">
+        <!-- 读者提问行 (左侧：头像 float:left + 气泡 margin-left) -->
+        <section style="margin-bottom: 18px; box-sizing: border-box; overflow: hidden;">
+          <section style="float: left; width: 36px; height: 36px; line-height: 36px; border-radius: 18px; background-color: #64748b; text-align: center; box-sizing: border-box; box-shadow: 0 2px 6px rgba(100, 116, 139, 0.25);">
+            <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 36px; display: block; text-align: center;">问</span>
+          </section>
+          <section style="margin-left: 48px; max-width: 82%; box-sizing: border-box;">
+            <section style="display: inline-block; background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 14px; border-top-left-radius: 3px; padding: 11px 16px; font-size: ${fontSize - 1}px; line-height: 1.65; text-align: justify; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+              <span style="color: #1e293b; font-size: ${fontSize - 1}px;">${formatInline(qText, '#2563eb')}</span>
+            </section>
+          </section>
+        </section>
+
+        <!-- 主理人回答行 (右侧：头像 float:right + 气泡 float:right + clear:both) -->
+        <section style="margin-bottom: 8px; box-sizing: border-box; overflow: hidden;">
+          <section style="float: right; width: 36px; height: 36px; line-height: 36px; border-radius: 18px; background-color: ${primary}; text-align: center; box-sizing: border-box; box-shadow: 0 2px 6px ${hexToRgba(primary, 0.35)};">
+            <span style="color: #ffffff; font-size: 13px; font-weight: bold; line-height: 36px; display: block; text-align: center;">答</span>
+          </section>
+          <section style="float: right; margin-right: 12px; max-width: 82%; box-sizing: border-box; text-align: right;">
+            <section style="display: inline-block; background-color: ${hexToRgba(primary, 0.1)}; border: 1px solid ${hexToRgba(primary, 0.28)}; border-radius: 14px; border-top-right-radius: 3px; padding: 11px 16px; font-size: ${fontSize - 1}px; line-height: 1.65; text-align: justify; box-sizing: border-box; box-shadow: 0 2px 8px ${hexToRgba(primary, 0.08)};">
+              <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(aText, primary)}</span>
+            </section>
+          </section>
+        </section>
+        <section style="clear: both; height: 0; line-height: 0; font-size: 0;"></section>
       </section>
     `;
   }
 
-  // 11. 发光时间线节点 :::timeline
+  // 11. 发光时间线节点 :::timeline（免 table 纯 section 工业级排版：连续平滑轴线 + 负外边距同轴发光微节点，100% 连贯不突断）
   if (lowerType === 'timeline') {
     const items = content.split(/[;；]/).map(s => s.trim()).filter(Boolean);
     const nodesHtml = items.map((item, idx) => {
       const parts = item.split(/[|｜]/);
       const timeNode = parts[0]?.trim() || `阶段 0${idx + 1}`;
       const textNode = parts.slice(1).join('｜').trim() || item;
+      const isLast = idx === items.length - 1;
       return `
-        <tr>
-          <td style="width: 22px; vertical-align: top; padding: 0 8px 18px 0; border: none; position: relative;">
-            <section style="width: 12px; height: 12px; border-radius: 6px; background-color: ${primary}; border: 2px solid #ffffff; box-shadow: 0 0 0 2px ${primary}; margin: 3px auto 0 auto; box-sizing: border-box;"></section>
-          </td>
-          <td style="vertical-align: top; padding: 0 0 18px 0; border: none; border-left: 2px solid ${hexToRgba(primary, 0.3)}; padding-left: 12px;">
-            <section style="font-size: 13px; font-weight: bold; font-family: Menlo, monospace; margin-bottom: 2px;">
-              <span style="color: ${primary}; font-weight: bold;">${formatInline(timeNode, primary)}</span>
-            </section>
-            <section style="font-size: ${fontSize - 1}px; line-height: 1.6;">
-              <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(textNode, primary)}</span>
-            </section>
-          </td>
-        </tr>
+        <section style="position: relative; padding-left: 26px; padding-bottom: ${isLast ? '6px' : '22px'}; border-left: 2px solid ${isLast ? 'transparent' : hexToRgba(primary, 0.35)}; box-sizing: border-box;">
+          <!-- 发光节点正圆徽章 (精准同轴负边距覆盖) -->
+          <section style="position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 7px; background-color: ${primary}; border: 2.5px solid #ffffff; box-shadow: 0 0 0 2px ${hexToRgba(primary, 0.45)}, 0 2px 6px ${hexToRgba(primary, 0.35)}; box-sizing: border-box;"></section>
+          <!-- 时间与节点标题 -->
+          <section style="margin-bottom: 4px; line-height: 1.4;">
+            <span style="display: inline-block; background-color: ${hexToRgba(primary, 0.1)}; color: ${primary}; font-size: 12px; font-weight: bold; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2px 8px; border-radius: 4px; border: 1px solid ${hexToRgba(primary, 0.2)}; letter-spacing: 0.5px;">
+              ${formatInline(timeNode, primary)}
+            </span>
+          </section>
+          <!-- 节点详细内容 -->
+          <section style="font-size: ${fontSize - 1}px; line-height: 1.65; color: ${textColor}; padding-top: 2px;">
+            <span style="color: ${textColor}; font-size: ${fontSize - 1}px;">${formatInline(textNode, primary)}</span>
+          </section>
+        </section>
       `;
     }).join('');
 
     return `
-      <section style="margin: 26px 0; padding: 4px 8px; box-sizing: border-box;">
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
-          <tbody>
-            ${nodesHtml}
-          </tbody>
-        </table>
+      <section style="margin: 28px 0 28px 12px; padding: 4px 6px; box-sizing: border-box;">
+        ${nodesHtml}
       </section>
     `;
   }
@@ -856,24 +844,29 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
           <span style="font-size: 14px; font-weight: bold; color: ${textColor}; display: flex; align-items: center; gap: 6px;">
             📜 ${formatInline(unfoldTitle, primary)}
           </span>
-          <span style="font-size: 11px; color: #94a3b8; font-family: monospace;">点击展开</span>
+          <span style="font-size: 11px; color: ${primary}; font-weight: bold; font-family: -apple-system, sans-serif;">轻触展开 ▼</span>
         </div>
 
-        <svg viewBox="0 0 600 280" style="width: 100%; max-width: 600px; height: 100px; display: block; margin: 0 auto; overflow: hidden; transition: all 0.3s ease; background-color: #ffffff;" xmlns="http://www.w3.org/2000/svg">
-          <animate attributeName="height" begin="click; touchstart" from="100px" to="280px" dur="0.35s" fill="freeze" restart="never" />
+        <svg viewBox="0 0 600 280" style="width: 100%; max-width: 600px; height: 110px; display: block; margin: 0 auto; overflow: hidden; transition: all 0.35s ease; background-color: #ffffff;" xmlns="http://www.w3.org/2000/svg">
+          <animate attributeName="height" begin="click; touchstart" from="110px" to="280px" dur="0.35s" fill="freeze" restart="never" />
 
           <!-- 内容矢量文字 -->
           <g>
             ${renderSvgMultilineText(detailContent, 300, 36, 26, 24, textColor, 14, 'normal')}
           </g>
 
-          <!-- 底部渐变遮罩与“点击展开”按钮提示 -->
+          <!-- 底部渐变遮罩与超大醒目“点击展开”按钮提示 -->
           <g style="cursor: pointer;">
-            <rect x="0" y="25" width="600" height="75" fill="#ffffff" opacity="0.9" />
-            <rect x="220" y="55" width="160" height="32" rx="16" fill="${primary}" />
-            <text x="300" y="76" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffffff">▼ 点击展开长卷</text>
+            <!-- 渐变毛玻璃白底遮罩 -->
+            <rect x="0" y="20" width="600" height="90" fill="#ffffff" opacity="0.96" />
+            <!-- 按钮投影外发光层 -->
+            <rect x="170" y="48" width="260" height="46" rx="23" fill="${hexToRgba(primary, 0.25)}" />
+            <!-- 按钮主体实色层 -->
+            <rect x="170" y="46" width="260" height="46" rx="23" fill="${primary}" />
+            <!-- 按钮醒目文字与指引图标 -->
+            <text x="300" y="75" text-anchor="middle" font-size="15" font-weight="bold" fill="#ffffff" letter-spacing="1">👇 点击展开完整画卷</text>
 
-            <animate attributeName="opacity" begin="click; touchstart" from="0.9" to="0" dur="0.25s" fill="freeze" restart="never" />
+            <animate attributeName="opacity" begin="click; touchstart" from="1" to="0" dur="0.25s" fill="freeze" restart="never" />
             <animate attributeName="display" begin="click+0.25s; touchstart+0.25s" from="inline" to="none" dur="0.01s" fill="freeze" restart="never" />
           </g>
         </svg>
