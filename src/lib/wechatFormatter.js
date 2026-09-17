@@ -159,38 +159,28 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // 3. 步骤徽章 :::step
+  // 3. 步骤徽章 :::step（彻底抛弃 table，使用纯行内块 section，防止微信全局 table 劫持导致左侧序号异常拉宽）
   if (lowerType === 'step') {
     const parts = content.split(/[|｜]/);
-    let stepTag = 'STEP';
+    let stepTag = 'STEP 01';
     let stepText = content;
     if (parts.length >= 2) {
       stepTag = parts[0].trim();
       stepText = parts.slice(1).join('｜').trim();
     }
     return `
-      <section style="margin: 28px 0 14px 0; box-sizing: border-box;">
-        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
-          <tbody>
-            <tr>
-              <td style="vertical-align: middle; padding: 0 10px 0 0; border: none;">
-                <span style="display: inline-block; padding: 3px 10px; background-color: ${primary}; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: bold; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, monospace; line-height: 1.4; text-align: center; white-space: nowrap;">
-                  ${stepTag}
-                </span>
-              </td>
-              <td style="vertical-align: middle; padding: 0; border: none;">
-                <span style="font-size: ${fontSize + 2}px; font-weight: 800; color: ${textColor}; line-height: 1.4; letter-spacing: 0.3px;">
-                  ${formatInline(stepText, primary)}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <section style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
+        <section style="display: inline-block; vertical-align: middle; padding: 4px 10px; background-color: ${primary}; border-radius: 6px; margin-right: 10px; box-sizing: border-box;">
+          <span style="color: #ffffff; font-size: 12px; font-weight: bold; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, monospace; line-height: 1; text-align: center; white-space: nowrap; display: inline-block;">${stepTag}</span>
+        </section>
+        <span style="display: inline-block; vertical-align: middle; font-size: ${fontSize + 2}px; font-weight: 800; color: ${textColor}; line-height: 1.4; letter-spacing: 0.3px;">
+          ${formatInline(stepText, primary)}
+        </span>
       </section>
     `;
   }
 
-  // 4. 作者签名栏 :::author（采用 table 双栏布局与经典行高居中，100% 微信富文本兼容）
+  // 4. 作者签名栏 :::author（彻底解决头像塌陷与文字顺色：使用 fixed table 锁死左列，头像使用纯 section 盒模型，文字显式 span 包裹）
   if (lowerType === 'author') {
     const parts = content.split(/[|｜]/);
     const authorName = parts[0]?.trim() || '本文作者';
@@ -199,22 +189,22 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
     return `
       <section style="margin: 36px 0 24px 0; padding: 18px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box;">
-        <table style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
           <tbody>
             <tr>
-              <td style="width: 50px; vertical-align: middle; padding: 0; border: none; text-align: center;">
-                <span style="display: block; width: 44px; height: 44px; line-height: 44px; border-radius: 50%; background-color: ${primary}; color: #ffffff; font-size: 18px; font-weight: bold; text-align: center; margin: 0 auto; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);">
-                  ${initialChar}
-                </span>
+              <td style="width: 52px; vertical-align: middle; padding: 0; border: none; text-align: center;">
+                <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: ${primary}; text-align: center; margin: 0 auto; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);">
+                  <span style="color: #ffffff; font-size: 18px; font-weight: bold; line-height: 44px; display: inline-block; text-align: center;">${initialChar}</span>
+                </section>
               </td>
               <td style="vertical-align: middle; padding: 0 0 0 14px; border: none;">
                 <section style="margin: 0; padding: 0;">
-                  <div style="font-size: 15px; font-weight: bold; color: ${textColor}; line-height: 1.4; margin-bottom: 4px;">
-                    <span style="color: ${textColor}; font-weight: bold;">${formatInline(authorName, primary)}</span>
-                  </div>
-                  <div style="font-size: 13px; color: #64748b; line-height: 1.5; margin: 0;">
-                    <span style="color: #64748b;">${formatInline(authorBio, primary)}</span>
-                  </div>
+                  <section style="font-size: 15px; font-weight: bold; line-height: 1.4; margin-bottom: 4px;">
+                    <span style="color: ${textColor}; font-size: 15px; font-weight: bold;">${formatInline(authorName, primary)}</span>
+                  </section>
+                  <section style="font-size: 13px; line-height: 1.5; margin: 0;">
+                    <span style="color: #64748b; font-size: 13px;">${formatInline(authorBio, primary)}</span>
+                  </section>
                 </section>
               </td>
             </tr>
@@ -228,11 +218,11 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'tip') {
     return `
       <section style="margin: 24px 0; padding: 14px 18px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; box-sizing: border-box;">
-        <div style="font-size: 13px; font-weight: bold; color: #15803d; margin-bottom: 5px;">
-          💡 核心要点 / TIP
-        </div>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #166534;">
-          <span style="color: #166534;">${formatInline(content, '#15803d')}</span>
+        <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+          <span style="color: #15803d; font-size: 13px; font-weight: bold;">💡 核心要点 / TIP</span>
+        </section>
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+          <span style="color: #166534; font-size: ${fontSize}px;">${formatInline(content, '#15803d')}</span>
         </p>
       </section>
     `;
@@ -242,11 +232,11 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'warning') {
     return `
       <section style="margin: 24px 0; padding: 14px 18px; background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #ea580c; border-radius: 8px; box-sizing: border-box;">
-        <div style="font-size: 13px; font-weight: bold; color: #c2410c; margin-bottom: 5px;">
-          ⚠️ 避坑提醒 / WARNING
-        </div>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #9a3412;">
-          <span style="color: #9a3412;">${formatInline(content, '#c2410c')}</span>
+        <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+          <span style="color: #c2410c; font-size: 13px; font-weight: bold;">⚠️ 避坑提醒 / WARNING</span>
+        </section>
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+          <span style="color: #9a3412; font-size: ${fontSize}px;">${formatInline(content, '#c2410c')}</span>
         </p>
       </section>
     `;
@@ -261,12 +251,12 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const border = hexToRgba(primary, 0.2);
     return `
       <section style="margin: 28px 0; padding: 22px 20px; background-color: ${bg}; border: 1px solid ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
-        <div style="font-size: 32px; font-weight: 900; color: ${primary}; line-height: 1.2; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, sans-serif;">
-          <span style="color: ${primary};">${formatInline(val, primary)}</span>
-        </div>
-        <div style="font-size: 13px; font-weight: 500; color: #64748b; margin-top: 6px; letter-spacing: 0.5px;">
-          <span style="color: #64748b;">${formatInline(label, primary)}</span>
-        </div>
+        <section style="font-size: 32px; font-weight: 900; line-height: 1.2; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, sans-serif; text-align: center;">
+          <span style="color: ${primary}; font-size: 32px; font-weight: 900;">${formatInline(val, primary)}</span>
+        </section>
+        <section style="font-size: 13px; font-weight: 500; margin-top: 6px; letter-spacing: 0.5px; text-align: center;">
+          <span style="color: #64748b; font-size: 13px;">${formatInline(label, primary)}</span>
+        </section>
       </section>
     `;
   }
@@ -275,11 +265,11 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'card') {
     return `
       <section style="margin: 24px 0; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
-        <div style="font-size: 12px; font-weight: bold; color: #854d0e; letter-spacing: 1px; margin-bottom: 6px;">
-          🧾 深度拆解 · NOTE
-        </div>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #713f12;">
-          <span style="color: #713f12;">${formatInline(content, '#854d0e')}</span>
+        <section style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px;">
+          <span style="color: #854d0e; font-size: 12px; font-weight: bold;">🧾 深度拆解 · NOTE</span>
+        </section>
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+          <span style="color: #713f12; font-size: ${fontSize}px;">${formatInline(content, '#854d0e')}</span>
         </p>
       </section>
     `;
@@ -891,7 +881,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // 24. 微信横向滑动相册卡片走马灯 :::svg-scroll
+  // 24. 微信横向滑动相册卡片走马灯 :::svg-scroll (全网最优质解法：外层与卡片全用 section，-webkit-overflow-scrolling 保证移动端原生平滑横滑)
   if (lowerType === 'svg-scroll') {
     const rawCards = content.split('||').map(s => s.trim()).filter(Boolean);
     const cardsHtml = rawCards.map((c, i) => {
@@ -899,25 +889,25 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       const title = parts[0]?.trim() || `核心亮点 0${i + 1}`;
       const desc = parts.slice(1).join('：').trim() || c;
       return `
-        <div style="display: inline-block; vertical-align: top; width: 220px; white-space: normal; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-right: 12px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
-          <div style="font-size: 13px; font-weight: bold; color: ${primary}; margin-bottom: 6px;">
-            <span style="color: ${primary}; font-weight: bold;">${formatInline(title, primary)}</span>
-          </div>
-          <div style="font-size: 12px; line-height: 1.6; color: #475569; text-align: justify;">
-            <span style="color: #475569;">${formatInline(desc, primary)}</span>
-          </div>
-        </div>
+        <section style="display: inline-block; vertical-align: top; width: 230px; white-space: normal; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-right: 12px; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+          <section style="font-size: 13px; font-weight: bold; margin-bottom: 6px;">
+            <span style="color: ${primary}; font-weight: bold; font-size: 13px;">${formatInline(title, primary)}</span>
+          </section>
+          <section style="font-size: 12px; line-height: 1.6; text-align: justify;">
+            <span style="color: #475569; font-size: 12px;">${formatInline(desc, primary)}</span>
+          </section>
+        </section>
       `;
     }).join('');
 
     return `
       <section style="margin: 26px 0; box-sizing: border-box;">
-        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px; text-align: right; padding-right: 4px;">
-          👉 左右滑动查看卡片 ⇄
-        </div>
-        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; padding: 4px 0 10px 0;">
+        <section style="font-size: 11px; color: #94a3b8; margin-bottom: 6px; text-align: right; padding-right: 4px;">
+          <span style="color: #94a3b8; font-size: 11px;">👉 手机端左右滑动查看卡片 ⇄</span>
+        </section>
+        <section style="width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; padding: 6px 2px 14px 2px; box-sizing: border-box;">
           ${cardsHtml}
-        </div>
+        </section>
       </section>
     `;
   }

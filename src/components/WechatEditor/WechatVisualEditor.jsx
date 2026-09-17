@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Smartphone,
   Copy,
@@ -32,6 +32,7 @@ import {
   Upload,
   FolderHeart,
   X,
+  Search,
   Plus,
   Loader2,
   Moon,
@@ -380,7 +381,24 @@ export function WechatVisualEditor({
   const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
   const [isComponentsDropdownOpen, setIsComponentsDropdownOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [componentSearchQuery, setComponentSearchQuery] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+
+  // 微信排版组件搜索与分类双重过滤
+  const filteredComponents = useMemo(() => {
+    const q = componentSearchQuery.trim().toLowerCase();
+    return WECHAT_COMPONENTS.filter((item) => {
+      const matchCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      if (!matchCategory) return false;
+      if (!q) return true;
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.tag.toLowerCase().includes(q) ||
+        (item.desc && item.desc.toLowerCase().includes(q)) ||
+        item.id.toLowerCase().includes(q)
+      );
+    });
+  }, [selectedCategory, componentSearchQuery]);
 
   // 图片暂存池状态
   const [stagedImages, setStagedImages] = useState(() => {
@@ -896,8 +914,30 @@ export function WechatVisualEditor({
                   </span>
                 </div>
 
+                {/* 组件实时搜索条 */}
+                <div className="relative my-2">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={componentSearchQuery}
+                    onChange={(e) => setComponentSearchQuery(e.target.value)}
+                    placeholder="快速搜索组件名称 / 标签 (如: 金句, 相册, step)..."
+                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-8 pr-7 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                  />
+                  {componentSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setComponentSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-0.5 rounded transition-colors"
+                      title="清除搜索"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
                 {/* 分类切换 Pills */}
-                <div className="flex items-center gap-1 p-1 bg-slate-950/60 rounded-xl my-2 border border-slate-800/60 overflow-x-auto">
+                <div className="flex items-center gap-1 p-1 bg-slate-950/60 rounded-xl mb-2 border border-slate-800/60 overflow-x-auto">
                   {COMPONENT_CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
@@ -914,33 +954,46 @@ export function WechatVisualEditor({
                   ))}
                 </div>
 
-                {/* 组件列表 */}
+                {/* 组件列表与空状态 */}
                 <div className="max-h-80 overflow-y-auto py-1 space-y-1 pr-1 custom-scrollbar">
-                  {WECHAT_COMPONENTS.filter(
-                    (item) => selectedCategory === 'all' || item.category === selectedCategory
-                  ).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        insertTextAtCursor(item.template);
-                        setIsComponentsDropdownOpen(false);
-                        onShowToast?.(`已插入「${item.name}」组件`);
-                      }}
-                      className="w-full text-left p-2 rounded-xl text-xs hover:bg-slate-800/80 transition-all group flex items-start gap-2.5 border border-transparent hover:border-slate-700/60"
-                    >
-                      <span className="text-base p-1.5 rounded-lg bg-slate-800/60 group-hover:scale-110 transition-transform shrink-0">
-                        {item.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-slate-200 group-hover:text-emerald-300 flex items-center justify-between">
-                          <span>{item.name}</span>
-                          <span className="text-[10px] font-mono text-slate-500">{item.tag}</span>
+                  {filteredComponents.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-500 space-y-1">
+                      <p className="text-slate-400 font-medium">未找到符合条件的排版组件</p>
+                      <p className="text-[11px] text-slate-600">可尝试更换搜索词或重置分类</p>
+                      <button
+                        type="button"
+                        onClick={() => { setComponentSearchQuery(''); setSelectedCategory('all'); }}
+                        className="mt-2 text-[11px] text-emerald-400 hover:underline inline-block font-semibold"
+                      >
+                        重置搜索与分类
+                      </button>
+                    </div>
+                  ) : (
+                    filteredComponents.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          insertTextAtCursor(item.template);
+                          setIsComponentsDropdownOpen(false);
+                          setComponentSearchQuery('');
+                          onShowToast?.(`已插入「${item.name}」组件`);
+                        }}
+                        className="w-full text-left p-2 rounded-xl text-xs hover:bg-slate-800/80 transition-all group flex items-start gap-2.5 border border-transparent hover:border-slate-700/60"
+                      >
+                        <span className="text-base p-1.5 rounded-lg bg-slate-800/60 group-hover:scale-110 transition-transform shrink-0">
+                          {item.icon}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-slate-200 group-hover:text-emerald-300 flex items-center justify-between">
+                            <span>{item.name}</span>
+                            <span className="text-[10px] font-mono text-slate-500">{item.tag}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.desc}</p>
                         </div>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{item.desc}</p>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}

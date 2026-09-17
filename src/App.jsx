@@ -26,6 +26,8 @@ import {
   Save,
   Clock,
   Loader2,
+  Edit3,
+  Edit,
 } from 'lucide-react';
 
 import { BackgroundGrid } from './components/ui/BackgroundGrid.jsx';
@@ -98,6 +100,9 @@ export default function App() {
   const [titlesStage, setTitlesStage] = useState('');
   const [titlesData, setTitlesData] = useState(initialDraft?.titlesData || null);
   const [selectedTitle, setSelectedTitle] = useState(initialDraft?.selectedTitle || '');
+  const [customTitleInput, setCustomTitleInput] = useState('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const titleInputRef = useRef(null);
 
   // Step 2: Angles & Article
   const [loadingAngles, setLoadingAngles] = useState(false);
@@ -797,26 +802,99 @@ export default function App() {
 
             {/* Selected Title Highlight Banner */}
             {selectedTitle && (
-              <div className="mb-5 p-4 rounded-xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border-2 border-emerald-500/60 flex items-center justify-between gap-4 shadow-[0_0_25px_rgba(16,185,129,0.2)] animate-in fade-in duration-200">
-                <div className="flex items-center gap-3 overflow-hidden">
+              <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-950 border-2 border-emerald-500/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-[0_0_25px_rgba(16,185,129,0.2)] animate-in fade-in duration-200">
+                <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
                   <div className="p-2 rounded-xl bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)] shrink-0">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <div className="overflow-hidden">
+                  <div className="overflow-hidden flex-1 min-w-0">
                     <div className="text-[11px] text-emerald-400 font-bold tracking-wider flex items-center gap-1.5">
-                      <span>已选定爆款标题（将作为后续写作与排版的主标题）</span>
+                      <span>已选定爆款标题（点击下方或微调按钮可直接二次修改）</span>
                     </div>
-                    <div className="text-sm font-extrabold text-white mt-0.5 truncate">{selectedTitle}</div>
+                    {isEditingTitle ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          ref={titleInputRef}
+                          type="text"
+                          value={selectedTitle}
+                          onChange={(e) => setSelectedTitle(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { setIsEditingTitle(false); showToast('标题微调完成！'); } }}
+                          className="bg-slate-900 border border-emerald-500/60 rounded-lg px-2.5 py-1 text-sm font-bold text-white w-full focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsEditingTitle(false); showToast('标题微调完成！'); }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors shrink-0"
+                        >
+                          保存
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => setIsEditingTitle(true)}
+                        className="text-sm font-extrabold text-white mt-0.5 truncate cursor-pointer hover:text-emerald-200 hover:underline flex items-center gap-1.5"
+                        title="点击直接修改微调此标题"
+                      >
+                        <span>{selectedTitle}</span>
+                        <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-emerald-400 shrink-0" />
+                      </div>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(selectedTitle); showToast('标题已复制到剪贴板！'); }}
-                  className="px-3.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all shrink-0 flex items-center gap-1.5"
-                >
-                  <Copy className="w-3.5 h-3.5" /> 复制标题
-                </button>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => { setIsEditingTitle(!isEditingTitle); }}
+                    className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{isEditingTitle ? '完成微调' : '修改微调'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(selectedTitle); showToast('标题已复制到剪贴板！'); }}
+                    className="px-3 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> 复制
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* 自拟定制标题快速输入栏 */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 bg-slate-950/70 border border-slate-800/90 rounded-2xl mb-5 shadow-sm">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 shrink-0 px-1">
+                <Edit className="w-3.5 h-3.5" />
+                <span>自定义自拟标题:</span>
+              </div>
+              <input
+                type="text"
+                value={customTitleInput}
+                onChange={(e) => setCustomTitleInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customTitleInput.trim()) {
+                    setSelectedTitle(customTitleInput.trim());
+                    setCustomTitleInput('');
+                    showToast(`已成功选用自定义标题: ${customTitleInput.trim()}`);
+                  }
+                }}
+                placeholder="候选中没有心仪的？在此输入你的专属定制标题，按 Enter 或点击选用..."
+                className="bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 flex-1 focus:outline-none focus:border-amber-500/50 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!customTitleInput.trim()) return showToast('请输入定制标题内容');
+                  setSelectedTitle(customTitleInput.trim());
+                  setCustomTitleInput('');
+                  showToast('已选用自定义标题！');
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold hover:bg-amber-500/30 transition-colors shrink-0"
+              >
+                采用此定制标题
+              </button>
+            </div>
 
             {/* Candidates Table */}
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/60 mb-6 shadow-inner">
@@ -1006,16 +1084,70 @@ export default function App() {
             </div>
           )}
 
-          {/* Writer Bar */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 mb-4">
-            <div className="flex items-center gap-2 overflow-hidden mr-4">
-              <span className="text-xs text-slate-400 shrink-0">当前标题:</span>
-              <span className="text-xs font-semibold text-emerald-400 truncate">
-                {selectedTitle || '(未选择标题，写作时将自动推断)'}
+          {/* Writer Bar (支持直接点击修改微调当前标题) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-950 border border-slate-800 mb-4 shadow-sm">
+            <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+              <span className="text-xs text-slate-400 shrink-0 flex items-center gap-1.5 font-medium">
+                <Edit3 className="w-3.5 h-3.5 text-emerald-400" />
+                当前标题:
               </span>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={selectedTitle}
+                    onChange={(e) => setSelectedTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setIsEditingTitle(false);
+                        showToast('当前标题已更新！');
+                      }
+                    }}
+                    placeholder="在此直接输入或微调标题..."
+                    className="bg-slate-900 border border-emerald-500/50 rounded-lg px-2.5 py-1 text-xs text-emerald-300 w-full focus:outline-none focus:ring-1 focus:ring-emerald-400 font-semibold"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingTitle(false);
+                      showToast('标题微调完成！');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors shrink-0"
+                  >
+                    保存
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span
+                    onClick={() => {
+                      setIsEditingTitle(true);
+                      setTimeout(() => titleInputRef.current?.focus(), 50);
+                    }}
+                    className="text-xs font-semibold text-emerald-400 truncate cursor-pointer hover:underline"
+                    title="点击即可直接修改微调此标题"
+                  >
+                    {selectedTitle || '(点击此处直接输入自定义标题，或在上方矩阵中选择)'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingTitle(true);
+                      setTimeout(() => titleInputRef.current?.focus(), 50);
+                    }}
+                    className="p-1 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-800 text-[11px] shrink-0 flex items-center gap-1 transition-colors"
+                    title="修改微调标题"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>微调</span>
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
               {/* Insert Stock Image Trigger */}
               <button
                 onClick={() => setIsWritingImagePickerOpen(true)}
@@ -1046,7 +1178,7 @@ export default function App() {
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-emerald-400 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>正在流式生成爆款正文...</span>
+                  <span>正在流式生成爆款正文并实时排版...</span>
                 </div>
                 <div className="flex items-center gap-3 font-mono text-xs">
                   <span className="text-slate-400">已产出: <strong className="text-white">{articleLength}</strong> 字</span>
@@ -1061,36 +1193,6 @@ export default function App() {
                   className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 transition-all duration-200 shadow-[0_0_15px_rgba(16,185,129,0.7)]"
                   style={{ width: `${writingPercent}%` }}
                 />
-              </div>
-            </div>
-          )}
-
-          {/* Article Markdown Output Preview */}
-          {articleMd && (
-            <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-6 min-h-[250px]">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                <span className="text-xs font-mono text-slate-400 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-emerald-400" /> 成稿 Markdown
-                  <span className="text-slate-500 font-normal ml-2">({articleLength} 字)</span>
-                </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setIsWritingImagePickerOpen(true)}
-                    className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" /> 搜索无版权图
-                  </button>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(articleMd); showToast('Markdown 已复制！'); }}
-                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5" /> 复制 Markdown
-                  </button>
-                </div>
-              </div>
-
-              <div className={`prose prose-invert max-w-none text-sm leading-relaxed ${isWriting ? 'typing-cursor' : ''}`}>
-                {renderMarkdown(articleMd)}
               </div>
             </div>
           )}
