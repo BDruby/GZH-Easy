@@ -414,15 +414,24 @@ async function apiArticle(req, res, body) {
   const calcMaxTokens = Math.min(4096, Math.max(1600, Math.ceil(words * 2)));
 
   let streamedChars = 0;
+  let streamedReasoningChars = 0;
   try {
-    for await (const delta of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens })) {
-      streamedChars += delta.length;
-      send({ type: 'delta', text: delta });
+    for await (const chunk of chatStream({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens })) {
+      if (typeof chunk === 'string') {
+        streamedChars += chunk.length;
+        send({ type: 'delta', text: chunk });
+      } else if (chunk && chunk.type === 'reasoning') {
+        streamedReasoningChars += chunk.text.length;
+        send({ type: 'reasoning', text: chunk.text });
+      } else if (chunk && chunk.type === 'content') {
+        streamedChars += chunk.text.length;
+        send({ type: 'delta', text: chunk.text });
+      }
     }
 
-    // 智能降级兜底：若部分中转/网关流式 SSE 返回为空，自动尝试非流式降级抓取完整正文
+    // 智能降级兜底：若部分中转/网关流式 SSE 正文返回为空，自动尝试非流式降级抓取完整正文
     if (streamedChars === 0) {
-      console.warn(`[apiArticle] 流式响应为空，自动启动非流式降级重试 (model: ${model})...`);
+      console.warn(`[apiArticle] 流式正文为空，自动启动非流式降级重试 (model: ${model})...`);
       const fallbackContent = await chat({ apiKey: key, model, baseUrl, messages, temperature: 0.8, maxTokens: calcMaxTokens });
       if (fallbackContent && fallbackContent.trim()) {
         streamedChars = fallbackContent.length;

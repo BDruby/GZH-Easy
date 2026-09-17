@@ -112,6 +112,8 @@ export default function App() {
   const [selectedAngle, setSelectedAngle] = useState(initialDraft?.selectedAngle || '');
 
   const [isWriting, setIsWriting] = useState(false);
+  const [reasoningText, setReasoningText] = useState('');
+  const [showReasoningBox, setShowReasoningBox] = useState(true);
   const [articleMd, setArticleMd] = useState(initialDraft?.articleMd || '');
   const abortControllerRef = useRef(null);
   const editorSectionRef = useRef(null);
@@ -138,7 +140,10 @@ export default function App() {
   const cleanArticleMarkdown = (raw) => {
     if (!raw) return '';
     let text = raw;
+    // 去除 <think> 标签包裹
     text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    // 去除大模型偶尔输出的英文思考开场白（如 Let me think about this...）
+    text = text.replace(/^(?:Let me think|Thinking Process|Here is the article|Okay, I will)[\s\S]*?\n\n/i, '').trim();
     const codeBlockMatch = text.match(/^```(?:markdown)?\s*\n([\s\S]*?)\n```\s*$/i);
     if (codeBlockMatch) {
       text = codeBlockMatch[1].trim();
@@ -415,6 +420,8 @@ export default function App() {
       const decoder = new TextDecoder('utf-8');
       let buf = '';
       let textAcc = '';
+      let reasoningAcc = '';
+      setReasoningText('');
 
       while (true) {
         const { done, value } = await reader.read();
@@ -430,7 +437,10 @@ export default function App() {
           if (msg.type === 'ping' || msg.type === 'start') {
             continue;
           }
-          if (msg.type === 'delta') {
+          if (msg.type === 'reasoning') {
+            reasoningAcc += msg.text;
+            setReasoningText(reasoningAcc);
+          } else if (msg.type === 'delta') {
             textAcc += msg.text;
             setArticleMd(textAcc);
           } else if (msg.type === 'error') {
@@ -443,7 +453,10 @@ export default function App() {
       if (buf.trim().startsWith('data:')) {
         try {
           const msg = JSON.parse(buf.trim().slice(5));
-          if (msg.type === 'delta') {
+          if (msg.type === 'reasoning') {
+            reasoningAcc += msg.text;
+            setReasoningText(reasoningAcc);
+          } else if (msg.type === 'delta') {
             textAcc += msg.text;
           } else if (msg.type === 'error') {
             throw new Error(msg.message);
@@ -1174,14 +1187,16 @@ export default function App() {
 
           {/* Article Streaming Writing Progress Bar */}
           {isWriting && (
-            <div className="mb-4 p-4 rounded-xl bg-slate-950 border border-emerald-500/40 shadow-lg space-y-2 animate-in fade-in">
+            <div className="mb-4 p-4 rounded-xl bg-slate-950 border border-emerald-500/40 shadow-lg space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-emerald-400 font-semibold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>正在流式生成爆款正文并实时排版...</span>
+                  <span>
+                    {reasoningText && !articleMd ? '🧠 AI 正在进行深度推演与构思策略...' : '正在流式生成爆款正文并实时排版...'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 font-mono text-xs">
-                  <span className="text-slate-400">已产出: <strong className="text-white">{articleLength}</strong> 字</span>
+                  <span className="text-slate-400">已产出正文: <strong className="text-white">{articleLength}</strong> 字</span>
                   <span className="text-slate-500">/</span>
                   <span className="text-slate-400">目标: <strong className="text-slate-200">约 {targetWords}</strong> 字</span>
                   <span className="text-emerald-400 font-bold ml-1">({writingPercent}%)</span>
@@ -1194,6 +1209,30 @@ export default function App() {
                   style={{ width: `${writingPercent}%` }}
                 />
               </div>
+
+              {/* 深度思考过程展示盒 (可折叠) */}
+              {reasoningText && (
+                <div className="pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-[11px] mb-1.5">
+                    <span className="text-indigo-400 font-semibold flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      模型思考逻辑与创作推演 (Reasoning Process)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowReasoningBox(!showReasoningBox)}
+                      className="text-slate-400 hover:text-slate-200 transition-colors text-[10px] underline"
+                    >
+                      {showReasoningBox ? '收起思考' : '展开思考'}
+                    </button>
+                  </div>
+                  {showReasoningBox && (
+                    <div className="max-h-36 overflow-y-auto p-2.5 rounded-lg bg-slate-900/90 border border-indigo-500/20 text-slate-300 font-mono text-[11px] leading-relaxed whitespace-pre-wrap select-text">
+                      {reasoningText}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </SpotlightCard>
