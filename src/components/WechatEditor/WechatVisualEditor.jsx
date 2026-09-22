@@ -582,9 +582,30 @@ export function WechatVisualEditor({
   const handleCopyWechatHtml = async () => {
     if (!wechatHtml) return onShowToast?.('暂无可复制的内容');
 
-    // 标准化微信富文本 Fragment
-    const standardHtml = `<html><head><meta charset="utf-8"></head><body><!--StartFragment-->${wechatHtml}<!--EndFragment--></body></html>`;
-    const plainText = extractPlainText(wechatHtml);
+    // 智能图像与格式安全巡检：
+    // 1. 确保所有 <img> 拥有 data-src 与 data-type 属性（微信官方排版转存与移动端懒加载必备）
+    // 2. 检查是否存在本地相对路径（如 /uploads/）或 localhost，若有则友好提示
+    let processedHtml = wechatHtml;
+    processedHtml = processedHtml.replace(/<img\b([^>]*?)>/gi, (match, attrs) => {
+      let updatedAttrs = attrs;
+      const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+      if (srcMatch && !attrs.includes('data-src=')) {
+        updatedAttrs += ` data-src="${srcMatch[1]}"`;
+      }
+      if (!attrs.includes('data-type=')) {
+        updatedAttrs += ` data-type="png"`;
+      }
+      return `<img${updatedAttrs}>`;
+    });
+
+    const hasRelativeImages = /src=["']\/(?!\/)[^"']*["']/i.test(processedHtml) || /src=["']http:\/\/localhost/i.test(processedHtml);
+    if (hasRelativeImages) {
+      onShowToast?.('⚠️ 提示：检测到文章包含本地暂存图片。微信后台无法拉取本地电脑图片，建议使用公网图床或在公众号后台重新上传。', 8000);
+    }
+
+    // 标准化微信富文本 Fragment，注入 no-referrer 彻底解决外部图床跨域防盗链拦截
+    const standardHtml = `<html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"></head><body><!--StartFragment-->${processedHtml}<!--EndFragment--></body></html>`;
+    const plainText = extractPlainText(processedHtml);
     let copied = false;
 
     // 方案 1 (行业黄金标准 - Doocs / MdNice / 135编辑器 方案):
@@ -623,7 +644,7 @@ export function WechatVisualEditor({
     if (!copied) {
       try {
         const container = document.createElement('div');
-        container.innerHTML = wechatHtml;
+        container.innerHTML = processedHtml;
         container.style.position = 'fixed';
         container.style.left = '-9999px';
         container.style.top = '0';
@@ -648,7 +669,7 @@ export function WechatVisualEditor({
 
     if (copied) {
       setCopyStatus('✅ 已成功复制富文本！已通过微信 100% 格式内联认证，在公众号后台 Cmd/Ctrl + V 粘贴即可');
-      onShowToast?.('🎉 微信富文本复制成功！样式代码已完整复制。（💡提示：由于微信PC编辑框限制，横滑相册需在后台点击右上角「预览」发送到手机端体验手势滑动）');
+      onShowToast?.('🎉 微信富文本复制成功！已注入完整内联样式与图床识别属性，在公众号后台 Cmd/Ctrl + V 粘贴即可。');
     } else {
       onShowToast?.('复制失败，请尝试在预览区手动全选复制');
     }
@@ -660,16 +681,245 @@ export function WechatVisualEditor({
     return el.innerText || el.textContent || '';
   };
 
-  // 导出 HTML 文件
+  // 导出带有「一键复制到公众号」独立工具栏的 HTML 文件，以便后期离线随时复用
   const handleExportHtml = () => {
-    const blob = new Blob([wechatHtml], { type: 'text/html;charset=utf-8' });
+    if (!wechatHtml) return onShowToast?.('暂无可导出的内容');
+
+    const cleanTitle = (articleTitle || '微信公众号爆款排版').replace(/[\\/:*?"<>|]/g, '_');
+    const exportTime = new Date().toLocaleString('zh-CN');
+
+    const standaloneHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>${cleanTitle} - 微信公众号排版归档</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f17;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+    .top-glass-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .bar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .bar-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .bar-meta {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      outline: none;
+    }
+    .btn-copy-wechat {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+    }
+    .btn-copy-wechat:hover {
+      background: linear-gradient(135deg, #047857, #059669);
+      transform: translateY(-1px);
+    }
+    .btn-copy-md {
+      background: rgba(30, 41, 59, 0.9);
+      color: #cbd5e1;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-copy-md:hover {
+      background: rgba(51, 65, 85, 0.9);
+      color: #ffffff;
+    }
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(16, 185, 129, 0.95);
+      backdrop-filter: blur(12px);
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2000;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .article-wrap {
+      max-width: 780px;
+      margin: 36px auto;
+      padding: 0 16px;
+    }
+    .article-card {
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <header class="top-glass-bar">
+    <div class="bar-info">
+      <div class="bar-title">📄 ${cleanTitle}</div>
+      <div class="bar-meta">已排版 · ${exportTime}</div>
+    </div>
+    <div class="bar-actions">
+      <button class="btn btn-copy-md" onclick="copyMarkdown()">📋 复制 Markdown</button>
+      <button class="btn btn-copy-wechat" onclick="copyToWechat()">✨ 一键复制到公众号</button>
+    </div>
+  </header>
+
+  <main class="article-wrap">
+    <div class="article-card" id="wechat-content">
+      ${wechatHtml}
+    </div>
+  </main>
+
+  <div id="toast">🎉 复制成功</div>
+
+  <script type="text/plain" id="raw-markdown">${(articleMd || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</script>
+
+  <script>
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function() {
+        t.classList.remove('show');
+      }, 3500);
+    }
+
+    function copyToWechat() {
+      var contentEl = document.getElementById('wechat-content');
+      if (!contentEl) return;
+      var html = contentEl.innerHTML;
+      // 保证图片具备微信转存与懒加载所需属性
+      html = html.replace(/<img\b([^>]*?)>/gi, function(m, attrs) {
+        var updated = attrs;
+        var srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+        if (srcMatch && !attrs.includes('data-src=')) {
+          updated += ' data-src="' + srcMatch[1] + '"';
+        }
+        if (!attrs.includes('data-type=')) {
+          updated += ' data-type="png"';
+        }
+        return '<img' + updated + '>';
+      });
+      var standardHtml = '<html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"></head><body><!--StartFragment-->' + html + '<!--EndFragment--></body></html>';
+      var plainText = contentEl.innerText || contentEl.textContent || '';
+      var copied = false;
+
+      try {
+        var copyListener = function(e) {
+          e.preventDefault();
+          e.clipboardData.clearData();
+          e.clipboardData.setData('text/html', standardHtml);
+          e.clipboardData.setData('text/plain', plainText);
+        };
+        document.addEventListener('copy', copyListener, { once: true });
+        copied = document.execCommand('copy');
+        document.removeEventListener('copy', copyListener);
+      } catch (err) {}
+
+      if (!copied && navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([standardHtml], { type: 'text/html' }),
+            'text/plain': new Blob([plainText], { type: 'text/plain' })
+          })
+        ]).then(function() {
+          showToast('✅ 已成功复制富文本！在微信公众号后台直接 Cmd/Ctrl + V 粘贴即可');
+        }).catch(function(e) {
+          showToast('⚠️ 复制遇到限制，请手动在页面全选复制');
+        });
+        return;
+      }
+
+      if (copied) {
+        showToast('✅ 已成功复制富文本！在微信公众号后台直接 Cmd/Ctrl + V 粘贴即可');
+      } else {
+        showToast('⚠️ 复制失败，请尝试手动全选页面正文复制');
+      }
+    }
+
+    function copyMarkdown() {
+      var mdEl = document.getElementById('raw-markdown');
+      var md = mdEl ? mdEl.textContent : '';
+      if (!md) {
+        showToast('暂无 Markdown 源码');
+        return;
+      }
+      navigator.clipboard.writeText(md).then(function() {
+        showToast('📋 Markdown 源码已复制到剪贴板！');
+      }).catch(function() {
+        showToast('复制失败，请手动复制');
+      });
+    }
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([standaloneHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${articleTitle || '微信公众号爆款排版'}.html`;
+    a.download = `${cleanTitle}.html`;
     a.click();
     URL.revokeObjectURL(url);
-    onShowToast?.('HTML 文件已导出');
+    onShowToast?.('🎉 已成功导出带有「一键复制」功能的独立 HTML 文件，随时可离线打开复用！');
   };
 
   return (

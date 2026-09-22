@@ -3,6 +3,14 @@
 
 export const WECHAT_THEMES = [
   {
+    id: 'macos27-glass',
+    name: '🫧 macOS 27 液态玻璃 (最新)',
+    primaryColor: '#0071e3',
+    secondaryColor: '#f0f6ff',
+    textColor: '#1d1d1f',
+    desc: 'Apple 概念液态微晶玻璃设计语言，晶莹通透、高光折射、红黄绿窗口质感，100% 微信公众号排版认证',
+  },
+  {
     id: 'moyu-green',
     name: '🎣 摸鱼绿 (推荐)',
     primaryColor: '#059669',
@@ -124,12 +132,27 @@ function renderSvgMultilineText(text, x, startY, lineHeight, maxCharsPerLine = 2
  * 2. 所有文本叶子节点显式注入 color，杜绝微信后台清洗覆盖默认黑字！
  * 3. 避免脆弱的 flex/gap，优先采用 table 与纯内联行内块，保证微信后台粘贴 100% 还原！
  */
-function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight }) {
+function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight, isMacosGlass }) {
   const content = (rawContent || '').trim();
   const lowerType = (type || '').toLowerCase();
 
   // 1. 导读卡 :::lead
   if (lowerType === 'lead') {
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 26px 0; padding: 18px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08); box-sizing: border-box;">
+          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #ff5f56; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #ffbd2e; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #27c93f; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+            <span style="font-size: 11px; font-weight: 700; color: #0071e3; margin-left: 6px; letter-spacing: 1px; text-transform: uppercase;">macOS · LEAD IN</span>
+          </section>
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: ${textColor}; font-weight: 500; text-align: justify;">
+            <span style="color: ${textColor}; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
+          </p>
+        </section>
+      `;
+    }
     const bg = hexToRgba(primary, 0.08);
     const border = hexToRgba(primary, 0.25);
     return `
@@ -146,6 +169,20 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 2. 居中金句 :::quote
   if (lowerType === 'quote') {
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 28px 0; padding: 22px 24px; background-color: #ffffff; background-image: linear-gradient(145deg, #ffffff 0%, #f4f8ff 100%); border-radius: 18px; border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.14); text-align: center; box-shadow: inset 0 1.5px 1px #ffffff, 0 10px 28px -4px rgba(0,113,227,0.1); box-sizing: border-box;">
+          <section style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 10px;">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ff5f56;"></span>
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ffbd2e;"></span>
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #27c93f;"></span>
+          </section>
+          <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: #0071e3; line-height: 1.65; letter-spacing: 0.5px;">
+            <span style="color: #0071e3; font-weight: bold;">“${formatInline(content, primary)}”</span>
+          </p>
+        </section>
+      `;
+    }
     const bg = hexToRgba(primary, 0.06);
     const border = hexToRgba(primary, 0.35);
     return `
@@ -168,6 +205,18 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       stepTag = parts[0].trim();
       stepText = parts.slice(1).join('｜').trim();
     }
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
+          <section style="display: inline-block; vertical-align: middle; padding: 4px 12px; background-color: #ffffff; background-image: linear-gradient(135deg, #e0f2fe, #dbeafe); border-radius: 8px; border: 1px solid rgba(0,113,227,0.25); box-shadow: inset 0 1px 1px #ffffff, 0 2px 6px rgba(0,113,227,0.08); margin-right: 10px; box-sizing: border-box;">
+            <span style="color: #0071e3; font-size: 11px; font-weight: 800; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, monospace; line-height: 1; text-align: center; white-space: nowrap; display: inline-block;">${stepTag}</span>
+          </section>
+          <span style="display: inline-block; vertical-align: middle; font-size: ${fontSize + 2}px; font-weight: 800; color: #1d1d1f; line-height: 1.4; letter-spacing: 0.3px;">
+            ${formatInline(stepText, primary)}
+          </span>
+        </section>
+      `;
+    }
     return `
       <section style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
         <section style="display: inline-block; vertical-align: middle; padding: 4px 10px; background-color: ${primary}; border-radius: 6px; margin-right: 10px; box-sizing: border-box;">
@@ -186,6 +235,34 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const authorName = parts[0]?.trim() || '本文作者';
     const authorBio = parts[1]?.trim() || '专注于深度思考、优质干货与实战复盘。关注我们，持续获得认知进化。';
     const initialChar = authorName.slice(0, 1);
+
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 36px 0 24px 0; padding: 18px 22px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08); box-sizing: border-box;">
+          <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
+            <tbody>
+              <tr>
+                <td style="width: 52px; vertical-align: middle; padding: 0; border: none; text-align: center;">
+                  <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: #0071e3; background-image: linear-gradient(135deg, #38bdf8, #0071e3); text-align: center; margin: 0 auto; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35);">
+                    <span style="color: #ffffff; font-size: 18px; font-weight: bold; line-height: 44px; display: inline-block; text-align: center;">${initialChar}</span>
+                  </section>
+                </td>
+                <td style="vertical-align: middle; padding: 0 0 0 14px; border: none;">
+                  <section style="margin: 0; padding: 0;">
+                    <section style="font-size: 15px; font-weight: bold; line-height: 1.4; margin-bottom: 4px;">
+                      <span style="color: #1d1d1f; font-size: 15px; font-weight: bold;">${formatInline(authorName, primary)}</span>
+                    </section>
+                    <section style="font-size: 13px; line-height: 1.5; margin: 0;">
+                      <span style="color: #64748b; font-size: 13px;">${formatInline(authorBio, primary)}</span>
+                    </section>
+                  </section>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      `;
+    }
 
     return `
       <section style="margin: 36px 0 24px 0; padding: 18px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box;">
@@ -216,6 +293,19 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 5. 核心要点提示 :::tip
   if (lowerType === 'tip') {
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 24px 0; padding: 16px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,253,244,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(22,163,74,0.18); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(22,163,74,0.08); box-sizing: border-box;">
+          <section style="font-size: 12px; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #16a34a; box-shadow: 0 0 6px rgba(22,163,74,0.5);"></span>
+            <span style="color: #15803d; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">macOS · 核心要点 TIP</span>
+          </section>
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+            <span style="color: #166534; font-size: ${fontSize}px;">${formatInline(content, '#15803d')}</span>
+          </p>
+        </section>
+      `;
+    }
     return `
       <section style="margin: 24px 0; padding: 14px 18px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; box-sizing: border-box;">
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
@@ -230,6 +320,19 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 6. 避坑警示注意 :::warning
   if (lowerType === 'warning') {
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 24px 0; padding: 16px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,247,237,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(234,88,12,0.18); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(234,88,12,0.08); box-sizing: border-box;">
+          <section style="font-size: 12px; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ea580c; box-shadow: 0 0 6px rgba(234,88,12,0.5);"></span>
+            <span style="color: #c2410c; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">macOS · 避坑警示 WARNING</span>
+          </section>
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+            <span style="color: #9a3412; font-size: ${fontSize}px;">${formatInline(content, '#c2410c')}</span>
+          </p>
+        </section>
+      `;
+    }
     return `
       <section style="margin: 24px 0; padding: 14px 18px; background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #ea580c; border-radius: 8px; box-sizing: border-box;">
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
@@ -247,6 +350,18 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const parts = content.split(/[|｜]/);
     const val = parts[0]?.trim() || '1000W+';
     const label = parts[1]?.trim() || '核心统计指标数据';
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 28px 0; padding: 24px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.16); border-radius: 18px; text-align: center; box-shadow: inset 0 1px 1px #ffffff, 0 10px 28px -4px rgba(0,113,227,0.1); box-sizing: border-box;">
+          <section style="font-size: 34px; font-weight: 900; line-height: 1.2; letter-spacing: 1px; font-family: -apple-system, BlinkMacSystemFont, Menlo, Monaco, sans-serif; text-align: center;">
+            <span style="color: #0071e3; font-size: 34px; font-weight: 900;">${formatInline(val, primary)}</span>
+          </section>
+          <section style="font-size: 13px; font-weight: 600; margin-top: 6px; letter-spacing: 0.5px; text-align: center;">
+            <span style="color: #64748b; font-size: 13px;">${formatInline(label, primary)}</span>
+          </section>
+        </section>
+      `;
+    }
     const bg = hexToRgba(primary, 0.06);
     const border = hexToRgba(primary, 0.2);
     return `
@@ -263,6 +378,19 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 8. 票据对比卡 :::card
   if (lowerType === 'card') {
+    if (isMacosGlass) {
+      return `
+        <section style="margin: 24px 0; padding: 18px 22px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-sizing: border-box; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08);">
+          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #0071e3; box-shadow: 0 0 6px rgba(0,113,227,0.45);"></span>
+            <span style="color: #0071e3; font-size: 11px; font-weight: 800; letter-spacing: 1px; font-family: Menlo, Monaco, monospace; text-transform: uppercase;">macOS · CARD NOTE</span>
+          </section>
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; color: #1d1d1f;">
+            <span style="color: #1d1d1f; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
+          </p>
+        </section>
+      `;
+    }
     return `
       <section style="margin: 24px 0; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
         <section style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px;">
@@ -503,7 +631,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       return `
         <section style="display: inline-block; width: 80%; max-width: 300px; vertical-align: top; margin-right: 14px; border-radius: 12px; overflow: hidden; background-color: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(0,0,0,0.06); box-sizing: border-box; white-space: normal;">
           <section style="width: 100%; height: 180px; max-height: 180px; overflow: hidden; background-color: #f1f5f9; position: relative;">
-            <img src="${imgUrl}" alt="${escapeHtml(cardTitle)}" style="display: block; width: 100% !important; height: 180px !important; min-height: 180px !important; max-height: 180px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+            <img src="${imgUrl}" data-src="${imgUrl}" alt="${escapeHtml(cardTitle)}" data-type="png" style="display: block; width: 100% !important; height: 180px !important; min-height: 180px !important; max-height: 180px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
           </section>
           <section style="padding: 12px 14px; background-color: #ffffff; box-sizing: border-box;">
             <section style="font-size: 14px; font-weight: bold; line-height: 1.4; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -568,7 +696,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       gridHtml = `
         <section style="border-radius: 10px; overflow: hidden; background-color: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); box-sizing: border-box; max-width: 500px; margin: 0 auto;">
           <section style="width: 100%; height: 220px; max-height: 220px; overflow: hidden; background-color: #f1f5f9; position: relative;">
-            <img src="${it.url}" alt="${escapeHtml(it.title)}" style="display: block; width: 100% !important; height: 220px !important; min-height: 220px !important; max-height: 220px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+            <img src="${it.url}" data-src="${it.url}" alt="${escapeHtml(it.title)}" data-type="png" style="display: block; width: 100% !important; height: 220px !important; min-height: 220px !important; max-height: 220px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
           </section>
           <section style="padding: 8px 12px; background-color: #f8fafc; font-size: 12px; font-weight: 600; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             <span style="color: #334155; font-size: 12px;">${formatInline(it.title, primary)}</span>
@@ -588,7 +716,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
             <td style="width: 50%; vertical-align: top; padding: 0; border: none;">
               <section style="border-radius: 8px; overflow: hidden; background-color: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); box-sizing: border-box;">
                 <section style="width: 100%; height: ${CARD_IMG_HEIGHT}px; max-height: ${CARD_IMG_HEIGHT}px; overflow: hidden; background-color: #f1f5f9; position: relative;">
-                  <img src="${it.url}" alt="${escapeHtml(it.title)}" style="display: block; width: 100% !important; height: ${CARD_IMG_HEIGHT}px !important; min-height: ${CARD_IMG_HEIGHT}px !important; max-height: ${CARD_IMG_HEIGHT}px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                  <img src="${it.url}" data-src="${it.url}" alt="${escapeHtml(it.title)}" data-type="png" style="display: block; width: 100% !important; height: ${CARD_IMG_HEIGHT}px !important; min-height: ${CARD_IMG_HEIGHT}px !important; max-height: ${CARD_IMG_HEIGHT}px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
                 </section>
                 <section style="padding: 7px 8px; background-color: #f8fafc; font-size: 11px; font-weight: 600; text-align: center; height: 28px; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;">
                   <span style="color: #334155; font-size: 11px;">${formatInline(it.title, primary)}</span>
@@ -642,7 +770,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
                   <span style="color: #e11d48; font-size: 12px; font-weight: bold;">${formatInline(label1, '#e11d48')}</span>
                 </section>
                 <section style="border-radius: 8px; overflow: hidden; margin-bottom: 8px; height: 120px; max-height: 120px; background-color: #ffe4e6; position: relative;">
-                  <img src="${url1}" alt="${escapeHtml(label1)}" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                  <img src="${url1}" data-src="${url1}" alt="${escapeHtml(label1)}" data-type="png" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
                 </section>
                 <section style="font-size: 11px; line-height: 1.5; color: #9f1239; text-align: justify;">
                   <span style="color: #9f1239; font-size: 11px;">${formatInline(desc1, '#e11d48')}</span>
@@ -654,7 +782,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
                   <span style="color: #16a34a; font-size: 12px; font-weight: bold;">${formatInline(label2, '#16a34a')}</span>
                 </section>
                 <section style="border-radius: 8px; overflow: hidden; margin-bottom: 8px; height: 120px; max-height: 120px; background-color: #dcfce7; position: relative;">
-                  <img src="${url2}" alt="${escapeHtml(label2)}" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
+                  <img src="${url2}" data-src="${url2}" alt="${escapeHtml(label2)}" data-type="png" style="display: block; width: 100% !important; height: 120px !important; min-height: 120px !important; max-height: 120px !important; object-fit: cover !important; border: none; margin: 0; padding: 0;" />
                 </section>
                 <section style="font-size: 11px; line-height: 1.5; color: #166534; text-align: justify;">
                   <span style="color: #166534; font-size: 11px;">${formatInline(desc2, '#16a34a')}</span>
@@ -677,7 +805,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     return `
       <section style="margin: 32px auto; max-width: 460px; padding: 14px 14px 20px 14px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); box-sizing: border-box; text-align: center;">
         <section style="width: 100%; height: 260px; overflow: hidden; background-color: #f1f5f9; border-radius: 2px;">
-          <img src="${imgUrl}" alt="${escapeHtml(caption)}" style="display: block; width: 100%; height: 100%; object-fit: cover;" />
+          <img src="${imgUrl}" data-src="${imgUrl}" alt="${escapeHtml(caption)}" data-type="png" style="display: block; width: 100%; height: 100%; object-fit: cover;" />
         </section>
         <section style="margin-top: 14px; font-size: 14px; font-weight: bold; letter-spacing: 0.5px; font-family: -apple-system, sans-serif; text-align: center;">
           <span style="color: #1e293b; font-size: 14px; font-weight: bold;">${formatInline(caption, primary)}</span>
@@ -922,6 +1050,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   const fontSize = options.fontSize || 15;
   const lineHeight = options.lineHeight || 1.8;
   const textColor = options.textColor || theme.textColor;
+  const isMacosGlass = theme.id === 'macos27-glass';
 
   const lines = markdown.split('\n');
   const htmlParts = [];
@@ -944,11 +1073,19 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     const tag = listType === 'ol' ? 'ol' : 'ul';
     const listHtml = listBuffer
       .map((item, idx) => {
-        const marker =
-          listType === 'ol'
-            ? `<span style="display:inline-block;min-width:20px;font-weight:bold;color:${primary};margin-right:6px;font-family:Menlo,Monaco,monospace;vertical-align:baseline;">${String(idx + 1).padStart(2, '0')}.</span>`
-            : `<span style="display:inline-block;width:6px;height:6px;background-color:${primary};border-radius:50%;margin-right:8px;vertical-align:middle;margin-top:-2px;"></span>`;
-        return `<li style="margin-bottom:8px;list-style:none;line-height:${lineHeight};color:${textColor};padding-left:0;">${marker}<span style="vertical-align:middle;">${formatInline(item, primary)}</span></li>`;
+        let marker = '';
+        if (isMacosGlass) {
+          marker =
+            listType === 'ol'
+              ? `<span style="display:inline-block;min-width:20px;height:18px;line-height:18px;background-color:#e0f2fe;border:1px solid rgba(0,113,227,0.22);border-radius:6px;font-size:11px;font-weight:800;color:#0071e3;text-align:center;margin-right:8px;box-shadow:inset 0 1px 1px #fff;font-family:Menlo,Monaco,monospace;vertical-align:middle;">${String(idx + 1).padStart(2, '0')}</span>`
+              : `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 6px rgba(0,113,227,0.45);margin-right:9px;vertical-align:middle;margin-top:-2px;"></span>`;
+        } else {
+          marker =
+            listType === 'ol'
+              ? `<span style="display:inline-block;min-width:20px;font-weight:bold;color:${primary};margin-right:6px;font-family:Menlo,Monaco,monospace;vertical-align:baseline;">${String(idx + 1).padStart(2, '0')}.</span>`
+              : `<span style="display:inline-block;width:6px;height:6px;background-color:${primary};border-radius:50%;margin-right:8px;vertical-align:middle;margin-top:-2px;"></span>`;
+        }
+        return `<li style="margin-bottom:8px;list-style:none;line-height:${lineHeight};color:${textColor};padding-left:0;">${marker}<span style="vertical-align:middle;color:${textColor};">${formatInline(item, primary)}</span></li>`;
       })
       .join('');
     htmlParts.push(
@@ -963,10 +1100,13 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     const header = tableRows[0];
     const body = tableRows.slice(1);
 
+    const headerThBg = isMacosGlass ? '#f0f6ff' : secondary;
+    const headerThColor = isMacosGlass ? '#0071e3' : primary;
+
     const headerHtml = `<tr>${header
       .map(
         (th) =>
-          `<th style="padding:10px 14px;background-color:${secondary};color:${primary};font-weight:bold;border:1px solid #e2e8f0;font-size:${fontSize - 1}px;text-align:left;">${formatInline(th, primary)}</th>`
+          `<th style="padding:10px 14px;background-color:${headerThBg};color:${headerThColor};font-weight:bold;border:1px solid #e2e8f0;font-size:${fontSize - 1}px;text-align:left;"><span style="color:${headerThColor};font-size:${fontSize - 1}px;font-weight:bold;">${formatInline(th, primary)}</span></th>`
       )
       .join('')}</tr>`;
 
@@ -976,14 +1116,18 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           `<tr style="background-color:${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'};">${row
             .map(
               (td) =>
-                `<td style="padding:9px 14px;border:1px solid #e2e8f0;font-size:${fontSize - 1}px;color:${textColor};line-height:1.6;">${formatInline(td, primary)}</td>`
+                `<td style="padding:9px 14px;border:1px solid #e2e8f0;font-size:${fontSize - 1}px;color:${textColor};line-height:1.6;"><span style="color:${textColor};">${formatInline(td, primary)}</span></td>`
             )
             .join('')}</tr>`
       )
       .join('');
 
+    const tableWrapperStyle = isMacosGlass
+      ? `overflow-x:auto;margin:22px 0;border-radius:14px;border:1px solid rgba(0,113,227,0.18);box-shadow:inset 0 1px 1px #fff,0 4px 16px rgba(0,113,227,0.06);background-color:#ffffff;`
+      : `overflow-x:auto;margin:20px 0;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.03);background-color:#ffffff;`;
+
     htmlParts.push(
-      `<div style="overflow-x:auto;margin:20px 0;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.03);"><table style="width:100%;border-collapse:collapse;text-align:left;font-size:${fontSize - 1}px;margin:0;background-color:#ffffff;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table></div>`
+      `<div style="${tableWrapperStyle}"><table style="width:100%;border-collapse:collapse;text-align:left;font-size:${fontSize - 1}px;margin:0;background-color:#ffffff;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table></div>`
     );
     inTable = false;
     tableRows = [];
@@ -1004,25 +1148,47 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       } else {
         inCodeBlock = false;
         const codeContent = escapeHtml(codeBuffer.join('\n'));
-        htmlParts.push(`
-          <section style="margin:20px 0;border-radius:10px;overflow:hidden;background-color:#1e1e1e;box-shadow:0 4px 16px rgba(0,0,0,0.15);box-sizing:border-box;">
-            <table style="width:100%;background-color:#2d2d2d;border-bottom:1px solid #3d3d3d;border-collapse:collapse;border:none;padding:0;margin:0;">
-              <tbody>
-                <tr>
-                  <td style="padding:8px 14px;vertical-align:middle;border:none;background-color:#2d2d2d;">
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;margin-right:6px;vertical-align:middle;"></span>
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;margin-right:6px;vertical-align:middle;"></span>
-                    <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;vertical-align:middle;"></span>
-                  </td>
-                  <td style="padding:8px 14px;text-align:right;vertical-align:middle;border:none;background-color:#2d2d2d;">
-                    <span style="font-size:11px;color:#9ca3af;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:600;">${codeLang || 'code'}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <pre style="margin:0;padding:14px 16px;overflow-x:auto;background-color:#1e1e1e;color:#e2e8f0;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.65;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code style="background-color:#1e1e1e;color:#e2e8f0;font-family:inherit;">${codeContent}</code></pre>
-          </section>
-        `);
+        if (isMacosGlass) {
+          htmlParts.push(`
+            <section style="margin:22px 0;border-radius:16px;overflow:hidden;background-color:#16171d;border:1px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 1px rgba(255,255,255,0.15),0 12px 36px rgba(0,0,0,0.28);box-sizing:border-box;">
+              <table style="width:100%;background-color:#202129;border-bottom:1px solid rgba(255,255,255,0.08);border-collapse:collapse;border:none;padding:0;margin:0;">
+                <tbody>
+                  <tr>
+                    <td style="padding:10px 14px;vertical-align:middle;border:none;background-color:#202129;">
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);margin-right:6px;vertical-align:middle;"></span>
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);margin-right:6px;vertical-align:middle;"></span>
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);vertical-align:middle;"></span>
+                    </td>
+                    <td style="padding:10px 14px;text-align:right;vertical-align:middle;border:none;background-color:#202129;">
+                      <span style="font-size:11px;color:#38bdf8;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;">${codeLang || 'macOS · code'}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <pre style="margin:0;padding:16px 18px;overflow-x:auto;background-color:#16171d;color:#e2e8f0;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.65;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code style="background-color:#16171d;color:#e2e8f0;font-family:inherit;">${codeContent}</code></pre>
+            </section>
+          `);
+        } else {
+          htmlParts.push(`
+            <section style="margin:20px 0;border-radius:10px;overflow:hidden;background-color:#1e1e1e;box-shadow:0 4px 16px rgba(0,0,0,0.15);box-sizing:border-box;">
+              <table style="width:100%;background-color:#2d2d2d;border-bottom:1px solid #3d3d3d;border-collapse:collapse;border:none;padding:0;margin:0;">
+                <tbody>
+                  <tr>
+                    <td style="padding:8px 14px;vertical-align:middle;border:none;background-color:#2d2d2d;">
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;margin-right:6px;vertical-align:middle;"></span>
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;margin-right:6px;vertical-align:middle;"></span>
+                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;vertical-align:middle;"></span>
+                    </td>
+                    <td style="padding:8px 14px;text-align:right;vertical-align:middle;border:none;background-color:#2d2d2d;">
+                      <span style="font-size:11px;color:#9ca3af;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:600;">${codeLang || 'code'}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <pre style="margin:0;padding:14px 16px;overflow-x:auto;background-color:#1e1e1e;color:#e2e8f0;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.65;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code style="background-color:#1e1e1e;color:#e2e8f0;font-family:inherit;">${codeContent}</code></pre>
+            </section>
+          `);
+        }
         codeBuffer = [];
       }
       continue;
@@ -1045,6 +1211,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           textColor,
           fontSize,
           lineHeight,
+          isMacosGlass,
         });
         if (rendered) htmlParts.push(rendered);
         inCustomBlock = false;
@@ -1073,6 +1240,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           textColor,
           fontSize,
           lineHeight,
+          isMacosGlass,
         });
         if (rendered) htmlParts.push(rendered);
       } else {
@@ -1140,13 +1308,30 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       const text = trimmed.slice(2);
-      htmlParts.push(`
-        <section style="margin:28px 0 18px 0;text-align:center;box-sizing:border-box;">
-          <h1 style="display:inline-block;margin:0;padding:6px 16px;font-size:${fontSize + 6}px;font-weight:900;color:${primary};letter-spacing:1px;line-height:1.4;border-bottom:3px solid ${primary};">
-            ${formatInline(text, primary)}
-          </h1>
-        </section>
-      `);
+      if (isMacosGlass) {
+        htmlParts.push(`
+          <section style="margin:36px auto 24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
+            <section style="display:inline-block;padding:12px 24px;background-color:#ffffff;background-image:linear-gradient(135deg,rgba(255,255,255,0.98) 0%,rgba(238,245,255,0.92) 100%);border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.18);border-radius:24px;box-shadow:inset 0 1px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.12),0 2px 6px rgba(0,0,0,0.02);box-sizing:border-box;">
+              <section style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
+              </section>
+              <h1 style="margin:0;font-size:${fontSize + 6}px;font-weight:900;color:#0071e3;letter-spacing:0.5px;line-height:1.4;">
+                ${formatInline(text, primary)}
+              </h1>
+            </section>
+          </section>
+        `);
+      } else {
+        htmlParts.push(`
+          <section style="margin:28px 0 18px 0;text-align:center;box-sizing:border-box;">
+            <h1 style="display:inline-block;margin:0;padding:6px 16px;font-size:${fontSize + 6}px;font-weight:900;color:${primary};letter-spacing:1px;line-height:1.4;border-bottom:3px solid ${primary};">
+              ${formatInline(text, primary)}
+            </h1>
+          </section>
+        `);
+      }
       continue;
     }
 
@@ -1155,13 +1340,26 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       const text = trimmed.slice(3);
-      htmlParts.push(`
-        <section style="margin:30px 0 16px 0;border-left:5px solid ${primary};padding-left:12px;box-sizing:border-box;">
-          <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:${textColor};letter-spacing:0.5px;line-height:1.35;">
-            ${formatInline(text, primary)}
-          </h2>
-        </section>
-      `);
+      if (isMacosGlass) {
+        htmlParts.push(`
+          <section style="margin:34px 0 18px 0;box-sizing:border-box;">
+            <section style="display:inline-block;padding:8px 16px;background-color:#ffffff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border-radius:14px;border:1px solid rgba(0,113,227,0.16);box-shadow:inset 0 1px 1px #ffffff,0 4px 14px rgba(0,113,227,0.06);box-sizing:border-box;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 8px rgba(0,113,227,0.5);margin-right:8px;vertical-align:middle;"></span>
+              <h2 style="display:inline-block;margin:0;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;vertical-align:middle;">
+                ${formatInline(text, primary)}
+              </h2>
+            </section>
+          </section>
+        `);
+      } else {
+        htmlParts.push(`
+          <section style="margin:30px 0 16px 0;border-left:5px solid ${primary};padding-left:12px;box-sizing:border-box;">
+            <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:${textColor};letter-spacing:0.5px;line-height:1.35;">
+              ${formatInline(text, primary)}
+            </h2>
+          </section>
+        `);
+      }
       continue;
     }
 
@@ -1170,13 +1368,24 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       const text = trimmed.slice(4);
-      htmlParts.push(`
-        <section style="margin:22px 0 10px 0;box-sizing:border-box;">
-          <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:${primary};line-height:1.4;">
-            ${formatInline(text, primary)}
-          </h3>
-        </section>
-      `);
+      if (isMacosGlass) {
+        htmlParts.push(`
+          <section style="margin:24px 0 12px 0;box-sizing:border-box;">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:#38bdf8;box-shadow:0 0 6px rgba(56,189,248,0.6);margin-right:8px;vertical-align:middle;"></span>
+            <h3 style="display:inline-block;margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;vertical-align:middle;">
+              ${formatInline(text, primary)}
+            </h3>
+          </section>
+        `);
+      } else {
+        htmlParts.push(`
+          <section style="margin:22px 0 10px 0;box-sizing:border-box;">
+            <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:${primary};line-height:1.4;">
+              ${formatInline(text, primary)}
+            </h3>
+          </section>
+        `);
+      }
       continue;
     }
 
@@ -1185,11 +1394,27 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       const text = trimmed.replace(/^>\s?/, '');
-      htmlParts.push(`
-        <section style="margin:18px 0;padding:14px 18px;background-color:${secondary};border-left:4px solid ${primary};border-radius:0 8px 8px 0;color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};box-sizing:border-box;">
-          <p style="margin:0;opacity:0.95;">${formatInline(text, primary)}</p>
-        </section>
-      `);
+      if (isMacosGlass) {
+        htmlParts.push(`
+          <section style="margin:22px 0;padding:16px 20px;background-color:#ffffff;background-image:linear-gradient(145deg,rgba(255,255,255,0.98) 0%,rgba(240,246,255,0.85) 100%);border-radius:16px;border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.12);box-shadow:inset 0 1.5px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.07);box-sizing:border-box;">
+            <section style="display:flex;align-items:center;gap:5px;margin-bottom:10px;">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+              <span style="font-size:11px;font-weight:700;color:#0071e3;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;">INSIGHT</span>
+            </section>
+            <p style="margin:0;font-size:${fontSize}px;line-height:${lineHeight};color:#1d1d1f;font-weight:500;text-align:justify;">
+              <span style="color:#1d1d1f;font-size:${fontSize}px;">${formatInline(text, primary)}</span>
+            </p>
+          </section>
+        `);
+      } else {
+        htmlParts.push(`
+          <section style="margin:18px 0;padding:14px 18px;background-color:${secondary};border-left:4px solid ${primary};border-radius:0 8px 8px 0;color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};box-sizing:border-box;">
+            <p style="margin:0;opacity:0.95;"><span style="color:${textColor};font-size:${fontSize}px;">${formatInline(text, primary)}</span></p>
+          </section>
+        `);
+      }
       continue;
     }
 
@@ -1197,30 +1422,68 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
       flushList();
       flushTable();
-      htmlParts.push(`
-        <section style="margin:28px auto;text-align:center;box-sizing:border-box;">
-          <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
-          <span style="display:inline-block;width:6px;height:6px;background-color:${primary};border-radius:50%;vertical-align:middle;margin:0 8px;"></span>
-          <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
-        </section>
-      `);
+      if (isMacosGlass) {
+        htmlParts.push(`
+          <section style="margin:32px auto;text-align:center;box-sizing:border-box;">
+            <span style="display:inline-block;width:40px;height:1px;background-color:rgba(0,113,227,0.25);vertical-align:middle;"></span>
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 10px rgba(0,113,227,0.5);vertical-align:middle;margin:0 10px;"></span>
+            <span style="display:inline-block;width:40px;height:1px;background-color:rgba(0,113,227,0.25);vertical-align:middle;"></span>
+          </section>
+        `);
+      } else {
+        htmlParts.push(`
+          <section style="margin:28px auto;text-align:center;box-sizing:border-box;">
+            <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
+            <span style="display:inline-block;width:6px;height:6px;background-color:${primary};border-radius:50%;vertical-align:middle;margin:0 8px;"></span>
+            <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
+          </section>
+        `);
+      }
       continue;
     }
 
-    // 10. 图片处理
-    const imgMatch = trimmed.match(/^!\[(.*?)\]\((.*?)\)$/);
-    if (imgMatch) {
+    // 10. 图片处理（彻底移除微信 UEditor 严禁的 figure/figcaption 标签，100% 采用微信标准 section 容器并注入 data-src 与 data-type 属性，确保图片抓取与懒加载零失效）
+    const mdImgMatch = trimmed.match(/^!\[(.*?)\]\(\s*([^\s'")]+)(?:\s+["'].*?["'])?\s*\)$/);
+    const htmlImgMatch = !mdImgMatch && trimmed.match(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/i);
+
+    if (mdImgMatch || htmlImgMatch) {
       flushList();
       flushTable();
-      const alt = imgMatch[1] || '';
-      const src = imgMatch[2] || '';
-      htmlParts.push(`
-        <figure style="margin:22px 0;text-align:center;box-sizing:border-box;">
-          <img src="${src}" alt="${alt}" style="max-width:100%;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08);display:inline-block;vertical-align:middle;" />
-          ${alt ? `<figcaption style="margin-top:8px;font-size:${fontSize - 3}px;color:#64748b;letter-spacing:0.3px;">${alt}</figcaption>` : ''}
-        </figure>
-      `);
-      continue;
+      let alt = '';
+      let src = '';
+
+      if (mdImgMatch) {
+        alt = mdImgMatch[1] || '';
+        src = mdImgMatch[2] || '';
+      } else {
+        src = htmlImgMatch[1] || '';
+        const altMatch = trimmed.match(/alt=["']([^"']*)["']/i);
+        alt = altMatch ? altMatch[1] : '';
+      }
+
+      if (src) {
+        if (isMacosGlass) {
+          htmlParts.push(`
+            <section style="margin:26px auto;text-align:center;box-sizing:border-box;max-width:100%;background-color:#ffffff;background-image:linear-gradient(135deg,rgba(255,255,255,0.98) 0%,rgba(240,246,255,0.85) 100%);padding:10px 10px 14px 10px;border-radius:18px;border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.14);box-shadow:inset 0 1px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.08);">
+              <section style="display:flex;align-items:center;gap:5px;padding:2px 8px 8px 6px;">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+              </section>
+              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="png" style="display:block;width:100% !important;max-width:100% !important;height:auto !important;border-radius:12px;margin:0 auto;box-sizing:border-box;" />
+              ${alt ? `<section style="margin-top:10px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;">${escapeHtml(alt)}</span></section>` : ''}
+            </section>
+          `);
+        } else {
+          htmlParts.push(`
+            <section style="margin:24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
+              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="png" style="display:block;max-width:100% !important;height:auto !important;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin:0 auto;box-sizing:border-box;" />
+              ${alt ? `<section style="margin-top:8px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;">${escapeHtml(alt)}</span></section>` : ''}
+            </section>
+          `);
+        }
+        continue;
+      }
     }
 
     // 11. 普通段落（双保险：内层包裹显式 span，彻底避免微信插入全局默认深灰黑）
@@ -1239,6 +1502,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       textColor,
       fontSize,
       lineHeight,
+      isMacosGlass,
     });
     if (rendered) htmlParts.push(rendered);
   }
@@ -1247,20 +1511,30 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   flushTable();
 
   // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，保证微信 UEditor 零清洗)
+  const containerStyle = isMacosGlass
+    ? `max-width:677px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#f8fafc;background-image:linear-gradient(180deg,#f0f6ff 0%,#f8fafc 180px,#ffffff 100%);box-sizing:border-box;-webkit-font-smoothing:antialiased;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 12px 40px rgba(0,113,227,0.05);`
+    : `max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`;
+
   return `
-    <section class="wechat-format-container" style="max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;">
+    <section class="wechat-format-container" style="${containerStyle}">
       ${htmlParts.join('\n')}
     </section>
   `.trim();
 }
 
 /**
- * 格式化内联样式：加粗、划重点、代码、链接、斜体
+ * 格式化内联样式：图片、加粗、划重点、代码、链接、斜体
  */
 function formatInline(text, primary) {
   if (!text) return '';
 
   let out = escapeHtml(text);
+
+  // 0. 行内图片转义恢复：如果段落中包含行内图片，解析为合法的微信兼容 img 标签
+  out = out.replace(
+    /!\[(.*?)\]\(\s*([^\s'")]+)(?:\s+["'].*?["'])?\s*\)/g,
+    (match, alt, url) => `<img src="${url}" data-src="${url}" alt="${alt}" data-type="png" style="display:inline-block;max-width:100% !important;height:auto !important;border-radius:8px;vertical-align:middle;margin:4px 0;" />`
+  );
 
   // 1. 加粗 **text** -> 带有主题强调色或深色加粗
   out = out.replace(/\*\*(.+?)\*\*/g, `<strong style="font-weight:700;color:${primary};">$1</strong>`);
@@ -1284,7 +1558,7 @@ function formatInline(text, primary) {
 }
 
 function escapeHtml(str) {
-  return str
+  return (str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

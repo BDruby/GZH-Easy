@@ -28,6 +28,8 @@ import {
   Loader2,
   Edit3,
   Edit,
+  Download,
+  Upload,
 } from 'lucide-react';
 
 import { BackgroundGrid } from './components/ui/BackgroundGrid.jsx';
@@ -214,6 +216,93 @@ export default function App() {
       localStorage.removeItem(DRAFT_STORAGE_KEY);
       showToast('草稿已清空重置');
     }
+  };
+
+  // 创作进度导入/导出功能
+  const importInputRef = useRef(null);
+
+  const handleExportProgress = () => {
+    try {
+      const progressData = {
+        version: '2.5',
+        exportedAt: new Date().toISOString(),
+        topic,
+        extra,
+        mode,
+        words,
+        route,
+        titlesData,
+        selectedTitle,
+        anglesData,
+        selectedAngle,
+        articleMd,
+      };
+      const jsonStr = JSON.stringify(progressData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeTitle = (selectedTitle || topic || '微信公众号创作进度').replace(/[\\/:*?"<>|]/g, '_').slice(0, 30);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `公众号进度_${safeTitle}_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('📦 创作进度已成功导出为 JSON 文件');
+    } catch (err) {
+      showToast('❌ 导出进度失败：' + (err.message || '未知错误'));
+    }
+  };
+
+  const handleImportProgress = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (!data || typeof data !== 'object') {
+          throw new Error('无效的 JSON 格式');
+        }
+
+        // 恢复所有状态
+        if (data.topic !== undefined) setTopic(data.topic || '');
+        if (data.extra !== undefined) setExtra(data.extra || '');
+        if (data.mode !== undefined) setMode(data.mode || 'long');
+        if (data.words !== undefined) setWords(Number(data.words) || 2000);
+        if (data.route !== undefined) setRoute(data.route || 'breakthrough');
+        if (data.titlesData !== undefined) setTitlesData(data.titlesData || null);
+        if (data.selectedTitle !== undefined) setSelectedTitle(data.selectedTitle || '');
+        if (data.anglesData !== undefined) setAnglesData(data.anglesData || null);
+        if (data.selectedAngle !== undefined) setSelectedAngle(data.selectedAngle || '');
+        if (data.articleMd !== undefined) setArticleMd(data.articleMd || '');
+
+        // 立即同步到 localStorage 草稿
+        try {
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+            topic: data.topic || '',
+            extra: data.extra || '',
+            mode: data.mode || 'long',
+            words: Number(data.words) || 2000,
+            route: data.route || 'breakthrough',
+            titlesData: data.titlesData || null,
+            selectedTitle: data.selectedTitle || '',
+            anglesData: data.anglesData || null,
+            selectedAngle: data.selectedAngle || '',
+            articleMd: data.articleMd || '',
+            savedAt: Date.now(),
+          }));
+        } catch { }
+
+        showToast('🎉 创作进度已成功导入并恢复！');
+      } catch (err) {
+        showToast('❌ 导入失败：' + (err.message || '文件格式不正确'));
+      } finally {
+        if (e.target) e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Sync state to local storage
@@ -663,6 +752,37 @@ export default function App() {
                 )}
               </div>
             )}
+
+            {/* 隐藏的进度文件导入 input */}
+            <input
+              type="file"
+              ref={importInputRef}
+              onChange={handleImportProgress}
+              accept=".json,application/json"
+              className="hidden"
+            />
+
+            {/* 进度导入与导出操作胶囊 */}
+            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => importInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                title="导入之前导出的 JSON 进度文件并恢复完整创作状态"
+              >
+                <Upload className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden sm:inline">导入进度</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportProgress}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                title="将当前选题、标题矩阵、提纲与文章正文草稿完整导出为 JSON 文件"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">导出进度</span>
+              </button>
+            </div>
 
             {/* API Settings Modal Trigger */}
             <button

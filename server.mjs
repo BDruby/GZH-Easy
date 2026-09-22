@@ -591,8 +591,10 @@ async function apiUpload(req, res, body) {
 
     const localUrl = `/uploads/${localFileName}`;
 
-    // 2. 推送至公网免防盗链图床通道（微信后台一键转存）
+    // 2. 推送至公网免防盗链图床通道（微信后台一键转存必备）
     let publicUrl = '';
+    
+    // 通道 1：Litterbox (72h 临时公网直链)
     try {
       const form = new FormData();
       form.append('reqtype', 'fileupload');
@@ -605,7 +607,7 @@ async function apiUpload(req, res, body) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         },
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(8000)
       });
 
       if (uploadRes.ok) {
@@ -615,7 +617,60 @@ async function apiUpload(req, res, body) {
         }
       }
     } catch (err) {
-      console.warn('[upload] 公网图床上传异常，自动降级本地直链:', err.message);
+      console.warn('[upload] 通道1 (Litterbox) 异常，尝试通道2...', err.message);
+    }
+
+    // 通道 2：Catbox 永久免费图床
+    if (!publicUrl) {
+      try {
+        const form2 = new FormData();
+        form2.append('reqtype', 'fileupload');
+        form2.append('fileToUpload', new Blob([buffer], { type: mimeType }), localFileName);
+
+        const uploadRes2 = await fetch('https://catbox.moe/user/api.php', {
+          method: 'POST',
+          body: form2,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+          },
+          signal: AbortSignal.timeout(8000)
+        });
+
+        if (uploadRes2.ok) {
+          const text = (await uploadRes2.text()).trim();
+          if (text.startsWith('http://') || text.startsWith('https://')) {
+            publicUrl = text;
+          }
+        }
+      } catch (err) {
+        console.warn('[upload] 通道2 (Catbox) 异常，尝试通道3...', err.message);
+      }
+    }
+
+    // 通道 3：0x0.st 极速图床
+    if (!publicUrl) {
+      try {
+        const form3 = new FormData();
+        form3.append('file', new Blob([buffer], { type: mimeType }), localFileName);
+
+        const uploadRes3 = await fetch('https://0x0.st', {
+          method: 'POST',
+          body: form3,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+          },
+          signal: AbortSignal.timeout(6000)
+        });
+
+        if (uploadRes3.ok) {
+          const text = (await uploadRes3.text()).trim();
+          if (text.startsWith('http://') || text.startsWith('https://')) {
+            publicUrl = text;
+          }
+        }
+      } catch (err) {
+        console.warn('[upload] 通道3 (0x0.st) 异常，降级使用本地暂存直链:', err.message);
+      }
     }
 
     // 优先公网直链（确保微信后台粘贴自动转存），降级使用本地相对直链
