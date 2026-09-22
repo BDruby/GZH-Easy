@@ -38,7 +38,7 @@ import {
   Moon,
   Sun,
 } from 'lucide-react';
-import { WECHAT_THEMES, formatToWechatHtml } from '../../lib/wechatFormatter.js';
+import { WECHAT_THEMES, formatToWechatHtml, prepareWechatImages } from '../../lib/wechatFormatter.js';
 import { ImagePickerModal } from '../ImagePickerModal.jsx';
 import { ShimmerButton } from '../ui/ShimmerButton.jsx';
 
@@ -583,24 +583,14 @@ export function WechatVisualEditor({
     if (!wechatHtml) return onShowToast?.('暂无可复制的内容');
 
     // 智能图像与格式安全巡检：
-    // 1. 确保所有 <img> 拥有 data-src 与 data-type 属性（微信官方排版转存与移动端懒加载必备）
-    // 2. 检查是否存在本地相对路径（如 /uploads/）或 localhost，若有则友好提示
+    // 1. 本地图片 (/uploads/ 等) 自动抓取并转为 Base64 Data URL，彻底解决微信后台无法下载本地图片导致裂图的问题
+    // 2. 外部图片自动转为 fm=jpg，避免微信后台拦截 WebP/AVIF
+    // 3. 动态识别正确的 data-type (jpeg/png/gif) 与注入 referrerpolicy="no-referrer"
     let processedHtml = wechatHtml;
-    processedHtml = processedHtml.replace(/<img\b([^>]*?)>/gi, (match, attrs) => {
-      let updatedAttrs = attrs;
-      const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
-      if (srcMatch && !attrs.includes('data-src=')) {
-        updatedAttrs += ` data-src="${srcMatch[1]}"`;
-      }
-      if (!attrs.includes('data-type=')) {
-        updatedAttrs += ` data-type="png"`;
-      }
-      return `<img${updatedAttrs}>`;
-    });
-
-    const hasRelativeImages = /src=["']\/(?!\/)[^"']*["']/i.test(processedHtml) || /src=["']http:\/\/localhost/i.test(processedHtml);
-    if (hasRelativeImages) {
-      onShowToast?.('⚠️ 提示：检测到文章包含本地暂存图片。微信后台无法拉取本地电脑图片，建议使用公网图床或在公众号后台重新上传。', 8000);
+    try {
+      processedHtml = await prepareWechatImages(wechatHtml);
+    } catch (e) {
+      console.warn('prepareWechatImages error, using fallback:', e);
     }
 
     // 标准化微信富文本 Fragment，注入 no-referrer 彻底解决外部图床跨域防盗链拦截
@@ -669,7 +659,7 @@ export function WechatVisualEditor({
 
     if (copied) {
       setCopyStatus('✅ 已成功复制富文本！已通过微信 100% 格式内联认证，在公众号后台 Cmd/Ctrl + V 粘贴即可');
-      onShowToast?.('🎉 微信富文本复制成功！已注入完整内联样式与图床识别属性，在公众号后台 Cmd/Ctrl + V 粘贴即可。');
+      onShowToast?.('🎉 微信富文本复制成功！本地图片已转为无损Base64，外链已规范化，在公众号后台直接 Cmd/Ctrl + V 粘贴即可。');
     } else {
       onShowToast?.('复制失败，请尝试在预览区手动全选复制');
     }
@@ -682,8 +672,16 @@ export function WechatVisualEditor({
   };
 
   // 导出带有「一键复制到公众号」独立工具栏的 HTML 文件，以便后期离线随时复用
-  const handleExportHtml = () => {
+  const handleExportHtml = async () => {
     if (!wechatHtml) return onShowToast?.('暂无可导出的内容');
+
+    onShowToast?.('⏳ 正在打包导出 HTML 并内嵌离线图片...', 2000);
+    let preparedHtml = wechatHtml;
+    try {
+      preparedHtml = await prepareWechatImages(wechatHtml);
+    } catch (e) {
+      console.warn('prepareWechatImages failed in export:', e);
+    }
 
     const cleanTitle = (articleTitle || '微信公众号爆款排版').replace(/[\\/:*?"<>|]/g, '_');
     const exportTime = new Date().toLocaleString('zh-CN');
@@ -824,7 +822,7 @@ export function WechatVisualEditor({
 
   <main class="article-wrap">
     <div class="article-card" id="wechat-content">
-      ${wechatHtml}
+      ${preparedHtml}
     </div>
   </main>
 
@@ -846,15 +844,26 @@ export function WechatVisualEditor({
       var contentEl = document.getElementById('wechat-content');
       if (!contentEl) return;
       var html = contentEl.innerHTML;
-      // 保证图片具备微信转存与懒加载所需属性
-      html = html.replace(/<img\b([^>]*?)>/gi, function(m, attrs) {
+      // 保证图片具备微信转存与懒加载所需属性，规范类型与防盗链
+      html = html.replace(/<img\\b([^>]*?)>/gi, function(m, attrs) {
         var updated = attrs;
-        var srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
-        if (srcMatch && !attrs.includes('data-src=')) {
-          updated += ' data-src="' + srcMatch[1] + '"';
-        }
-        if (!attrs.includes('data-type=')) {
-          updated += ' data-type="png"';
+        var srcMatch = attrs.match(/\\bsrc=["']([^"']+)["']/i);
+        if (srcMatch) {
+          var src = srcMatch[1];
+          if (!attrs.includes('data-src=')) {
+            updated += ' data-src="' + src + '"';
+          }
+          if (!attrs.includes('data-type=')) {
+            var dt = 'jpeg';
+            var cl = src.split('?')[0].toLowerCase();
+            if (cl.endsWith('.png') || cl.startsWith('data:image/png')) dt = 'png';
+            else if (cl.endsWith('.gif') || cl.startsWith('data:image/gif')) dt = 'gif';
+            else if (cl.endsWith('.webp') || cl.startsWith('data:image/webp')) dt = 'webp';
+            updated += ' data-type="' + dt + '"';
+          }
+          if (!attrs.includes('referrerpolicy=')) {
+            updated += ' referrerpolicy="no-referrer"';
+          }
         }
         return '<img' + updated + '>';
       });

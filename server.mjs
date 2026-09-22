@@ -535,8 +535,8 @@ async function apiSearchImages(req, res, url) {
             id: `u-${item.id}`,
             title: item.alt_description || item.description || `${query || '高清'} 配图`,
             category: category !== 'all' ? category : 'tech',
-            url: item.urls?.regular || item.urls?.full,
-            thumb: item.urls?.small || item.urls?.thumb,
+            url: (item.urls?.regular || item.urls?.full || '').replace(/auto=format/g, 'fm=jpg'),
+            thumb: (item.urls?.small || item.urls?.thumb || '').replace(/auto=format/g, 'fm=jpg'),
             author: item.user?.name || 'Unsplash Creator',
             source: 'Unsplash (Free Commercial Use)',
           }));

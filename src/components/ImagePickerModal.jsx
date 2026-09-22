@@ -192,7 +192,7 @@ export function ImagePickerModal({ isOpen, onClose, onInsertImage }) {
                           loading="lazy"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80';
+                            e.target.src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?fm=jpg&fit=crop&w=400&q=80';
                           }}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />

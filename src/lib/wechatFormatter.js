@@ -126,10 +126,145 @@ function renderSvgMultilineText(text, x, startY, lineHeight, maxCharsPerLine = 2
 }
 
 /**
+ * 智能检测图片的真实类型，用于微信规范 data-type
+ */
+function detectImgDataType(url) {
+  if (!url) return 'jpeg';
+  const clean = url.split('?')[0].toLowerCase();
+  if (clean.endsWith('.png') || clean.startsWith('data:image/png')) return 'png';
+  if (clean.endsWith('.gif') || clean.startsWith('data:image/gif')) return 'gif';
+  if (clean.endsWith('.webp') || clean.startsWith('data:image/webp')) return 'webp';
+  return 'jpeg';
+}
+
+/**
+ * 规范化图片地址：强制 Unsplash 等外链输出 JPEG 格式，杜绝微信后台因不支持 WebP 导致下载失败
+ */
+export function cleanImageUrl(url) {
+  if (!url) return '';
+  return url.replace(/auto=format/g, 'fm=jpg');
+}
+
+/**
+ * 微信公众号专用：苹果 macOS 红黄绿三色窗口小圆点 + 标题头部（使用原生无边框 Table 布局，彻底免疫微信 text-align: justify 导致的圆点分散错位与标题折行）
+ */
+function renderMacosTrafficLights(title = '', titleColor = '#0071e3', align = 'left') {
+  const marginStyle = align === 'center' ? 'margin: 0 auto 14px auto;' : 'margin: 0 0 14px 0;';
+  return `
+    <table style="border-collapse: collapse; border: none; ${marginStyle} padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
+      <tbody>
+        <tr style="border: none; background: transparent !important;">
+          <td style="border: none; padding: 0 5px 0 0; vertical-align: middle; line-height: 1; width: 13px;">
+            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #ff5f56; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+          </td>
+          <td style="border: none; padding: 0 5px 0 0; vertical-align: middle; line-height: 1; width: 13px;">
+            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #ffbd2e; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+          </td>
+          <td style="border: none; padding: 0 ${title ? '8px' : '0'} 0 0; vertical-align: middle; line-height: 1; width: ${title ? '16px' : '8px'};">
+            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #27c93f; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+          </td>
+          ${title ? `
+          <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
+            <span style="display: inline-block; font-size: 11px; font-weight: 700; color: ${titleColor}; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap !important; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;">${title}</span>
+          </td>` : ''}
+        </tr>
+      </tbody>
+    </table>
+  `.trim();
+}
+
+/**
+ * 微信公众号专用：macOS 单色状态圆点徽章头部（Table 锁死，绝不分散）
+ */
+function renderMacosSingleDotHeader(dotColor, title, titleColor) {
+  return `
+    <table style="border-collapse: collapse; border: none; margin: 0 0 10px 0; padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
+      <tbody>
+        <tr style="border: none; background: transparent !important;">
+          <td style="border: none; padding: 0 6px 0 0; vertical-align: middle; line-height: 1; width: 14px;">
+            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: ${dotColor}; box-shadow: 0 0 6px ${hexToRgba(dotColor, 0.45)};"></span>
+          </td>
+          <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
+            <span style="display: inline-block; color: ${titleColor}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; font-family: Menlo, Monaco, monospace; text-transform: uppercase; white-space: nowrap !important;">${title}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `.trim();
+}
+
+/**
+ * 智能预处理微信 HTML 中的图片：
+ * 1. 本地图片 (/uploads/、blob:、localhost 等) 自动在前端抓取并转化为 Base64 Data URL，彻底解决公众号后台无法下载本地图片导致裂图的问题
+ * 2. 外部图片强制去掉 auto=format 转为 fm=jpg，规避微信后台对 WebP/AVIF 的格式拦截
+ * 3. 智能检测并填充 data-type（严格匹配 jpeg/png/gif）与 referrerpolicy="no-referrer"，解决防盗链与格式冲突
+ */
+export async function prepareWechatImages(html) {
+  if (!html) return '';
+
+  const imgRegex = /<img\b([^>]*?)>/gi;
+  const matches = [...html.matchAll(imgRegex)];
+  if (matches.length === 0) return html;
+
+  let resultHtml = html;
+
+  for (const match of matches) {
+    const fullTag = match[0];
+    const attrs = match[1];
+
+    const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+    if (!srcMatch) continue;
+
+    let src = srcMatch[1];
+    const isLocal =
+      src.startsWith('/uploads/') ||
+      src.startsWith('/api/') ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(src) ||
+      src.startsWith('blob:');
+
+    if (isLocal) {
+      try {
+        const response = await fetch(src);
+        if (response.ok) {
+          const blob = await response.blob();
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          if (base64 && base64.startsWith('data:image/')) {
+            src = base64;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to convert local image to Base64:', src, e);
+      }
+    } else {
+      src = cleanImageUrl(src);
+    }
+
+    const dataType = detectImgDataType(src);
+
+    let newAttrs = attrs
+      .replace(/\bsrc=["'][^"']+["']/i, `src="${src}"`)
+      .replace(/\bdata-src=["'][^"']*["']/i, '')
+      .replace(/\bdata-type=["'][^"']*["']/i, '')
+      .replace(/\breferrerpolicy=["'][^"']*["']/i, '');
+
+    newAttrs += ` data-src="${src}" data-type="${dataType}" referrerpolicy="no-referrer"`;
+
+    resultHtml = resultHtml.replace(fullTag, `<img ${newAttrs.trim()}>`);
+  }
+
+  return resultHtml;
+}
+
+/**
  * 微信公众号专用增强排版组件渲染器
  * 核心原则：
  * 1. 杜绝 CSS 继承与渐变丢失导致的“文字背景顺色”，所有背景必须有纯色 background-color 兜底！
- * 2. 所有文本叶子节点显式注入 color，杜绝微信后台清洗覆盖默认黑字！
+ * 2. 所有文本叶子节点显式注入 color 与 font-family，杜绝微信后台清洗覆盖默认黑字！
  * 3. 避免脆弱的 flex/gap，优先采用 table 与纯内联行内块，保证微信后台粘贴 100% 还原！
  */
 function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight, isMacosGlass }) {
@@ -140,15 +275,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'lead') {
     if (isMacosGlass) {
       return `
-        <section style="margin: 26px 0; padding: 18px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08); box-sizing: border-box;">
-          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #ff5f56; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #ffbd2e; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #27c93f; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-            <span style="font-size: 11px; font-weight: 700; color: #0071e3; margin-left: 6px; letter-spacing: 1px; text-transform: uppercase;">macOS · LEAD IN</span>
-          </section>
-          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: ${textColor}; font-weight: 500; text-align: justify;">
-            <span style="color: ${textColor}; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
+        <section style="margin: 24px 0; padding: 18px 20px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 16px; box-shadow: 0 4px 18px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosTrafficLights('macOS · LEAD IN', '#0071e3')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #1d1d1f; font-weight: 400; letter-spacing: 0.5px; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
+            <span style="color: #1d1d1f; font-size: ${fontSize}px; line-height: ${lineHeight}; letter-spacing: 0.5px; font-weight: 400; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">${formatInline(content, primary)}</span>
           </p>
         </section>
       `;
@@ -160,7 +290,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
         <div style="font-size: 12px; font-weight: bold; color: ${primary}; letter-spacing: 1px; margin-bottom: 6px;">
           📌 导读 · LEAD IN
         </div>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: ${textColor}; font-weight: 500; text-align: justify;">
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: ${textColor}; font-weight: normal; letter-spacing: 0.5px; text-align: justify; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
           <span style="color: ${textColor}; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
         </p>
       </section>
@@ -171,14 +301,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'quote') {
     if (isMacosGlass) {
       return `
-        <section style="margin: 28px 0; padding: 22px 24px; background-color: #ffffff; background-image: linear-gradient(145deg, #ffffff 0%, #f4f8ff 100%); border-radius: 18px; border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.14); text-align: center; box-shadow: inset 0 1.5px 1px #ffffff, 0 10px 28px -4px rgba(0,113,227,0.1); box-sizing: border-box;">
-          <section style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 10px;">
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ff5f56;"></span>
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ffbd2e;"></span>
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #27c93f;"></span>
-          </section>
-          <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: #0071e3; line-height: 1.65; letter-spacing: 0.5px;">
-            <span style="color: #0071e3; font-weight: bold;">“${formatInline(content, primary)}”</span>
+        <section style="margin: 26px 0; padding: 22px 24px; background-color: #f4f8ff; background-image: linear-gradient(145deg, #ffffff 0%, #f4f8ff 100%); border-radius: 18px; border: 1px solid rgba(0,113,227,0.16); text-align: center; box-shadow: 0 6px 20px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosTrafficLights('', '#0071e3', 'center')}
+          <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: 600; color: #0071e3; line-height: 1.65; letter-spacing: 0.5px; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
+            <span style="color: #0071e3; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">“${formatInline(content, primary)}”</span>
           </p>
         </section>
       `;
@@ -188,7 +314,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     return `
       <section style="margin: 28px 0; padding: 20px 22px; background-color: ${bg}; border: 1px dashed ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
         <div style="font-size: 26px; color: ${primary}; line-height: 1; margin-bottom: 6px; font-family: Georgia, serif;">“</div>
-        <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: ${primary}; line-height: 1.6; letter-spacing: 0.5px;">
+        <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: ${primary}; line-height: 1.6; letter-spacing: 0.5px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
           <span style="color: ${primary}; font-weight: bold;">${formatInline(content, primary)}</span>
         </p>
         <div style="font-size: 26px; color: ${primary}; line-height: 1; margin-top: 6px; font-family: Georgia, serif;">”</div>
@@ -295,13 +421,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'tip') {
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 16px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,253,244,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(22,163,74,0.18); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(22,163,74,0.08); box-sizing: border-box;">
-          <section style="font-size: 12px; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #16a34a; box-shadow: 0 0 6px rgba(22,163,74,0.5);"></span>
-            <span style="color: #15803d; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">macOS · 核心要点 TIP</span>
-          </section>
-          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
-            <span style="color: #166534; font-size: ${fontSize}px;">${formatInline(content, '#15803d')}</span>
+        <section style="margin: 24px 0; padding: 16px 20px; background-color: #f0fdf4; background-image: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); border: 1px solid rgba(22, 163, 74, 0.2); border-radius: 16px; box-shadow: 0 4px 16px rgba(22,163,74,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#16a34a', 'macOS · 核心要点 TIP', '#15803d')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
+            <span style="color: #166534; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, '#15803d')}</span>
           </p>
         </section>
       `;
@@ -311,7 +434,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
           <span style="color: #15803d; font-size: 13px; font-weight: bold;">💡 核心要点 / TIP</span>
         </section>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
           <span style="color: #166534; font-size: ${fontSize}px;">${formatInline(content, '#15803d')}</span>
         </p>
       </section>
@@ -322,13 +445,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'warning') {
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 16px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,247,237,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(234,88,12,0.18); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(234,88,12,0.08); box-sizing: border-box;">
-          <section style="font-size: 12px; font-weight: bold; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ea580c; box-shadow: 0 0 6px rgba(234,88,12,0.5);"></span>
-            <span style="color: #c2410c; font-size: 12px; font-weight: bold; letter-spacing: 0.5px;">macOS · 避坑警示 WARNING</span>
-          </section>
-          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
-            <span style="color: #9a3412; font-size: ${fontSize}px;">${formatInline(content, '#c2410c')}</span>
+        <section style="margin: 24px 0; padding: 16px 20px; background-color: #fff7ed; background-image: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 16px; box-shadow: 0 4px 16px rgba(234,88,12,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#ea580c', 'macOS · 避坑警示 WARNING', '#c2410c')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
+            <span style="color: #9a3412; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, '#c2410c')}</span>
           </p>
         </section>
       `;
@@ -338,7 +458,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
           <span style="color: #c2410c; font-size: 13px; font-weight: bold;">⚠️ 避坑提醒 / WARNING</span>
         </section>
-        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify;">
+        <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
           <span style="color: #9a3412; font-size: ${fontSize}px;">${formatInline(content, '#c2410c')}</span>
         </p>
       </section>
@@ -352,7 +472,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const label = parts[1]?.trim() || '核心统计指标数据';
     if (isMacosGlass) {
       return `
-        <section style="margin: 28px 0; padding: 24px 20px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.9) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.16); border-radius: 18px; text-align: center; box-shadow: inset 0 1px 1px #ffffff, 0 10px 28px -4px rgba(0,113,227,0.1); box-sizing: border-box;">
+        <section style="margin: 28px 0; padding: 24px 20px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 18px; text-align: center; box-shadow: 0 6px 20px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
           <section style="font-size: 34px; font-weight: 900; line-height: 1.2; letter-spacing: 1px; font-family: -apple-system, BlinkMacSystemFont, Menlo, Monaco, sans-serif; text-align: center;">
             <span style="color: #0071e3; font-size: 34px; font-weight: 900;">${formatInline(val, primary)}</span>
           </section>
@@ -380,13 +500,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
   if (lowerType === 'card') {
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 18px 22px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-sizing: border-box; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08);">
-          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #0071e3; box-shadow: 0 0 6px rgba(0,113,227,0.45);"></span>
-            <span style="color: #0071e3; font-size: 11px; font-weight: 800; letter-spacing: 1px; font-family: Menlo, Monaco, monospace; text-transform: uppercase;">macOS · CARD NOTE</span>
-          </section>
-          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; color: #1d1d1f;">
-            <span style="color: #1d1d1f; font-size: ${fontSize}px;">${formatInline(content, primary)}</span>
+        <section style="margin: 24px 0; padding: 18px 22px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 16px; box-sizing: border-box; box-shadow: 0 4px 16px rgba(0,113,227,0.06); -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#0071e3', 'macOS · CARD NOTE', '#0071e3')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; color: #1d1d1f; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
+            <span style="color: #1d1d1f; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, primary)}</span>
           </p>
         </section>
       `;
@@ -968,12 +1085,18 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
     return `
       <section style="margin: 28px 0; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.04); background-color: #ffffff; box-sizing: border-box;">
-        <div style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-size: 14px; font-weight: bold; color: ${textColor}; display: flex; align-items: center; gap: 6px;">
-            📜 ${formatInline(unfoldTitle, primary)}
-          </span>
-          <span style="font-size: 11px; color: ${primary}; font-weight: bold; font-family: -apple-system, sans-serif;">轻触展开 ▼</span>
-        </div>
+        <table style="width: 100%; border-collapse: collapse; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; border: none; margin: 0; padding: 0;">
+          <tbody>
+            <tr>
+              <td style="padding: 14px 18px; vertical-align: middle; border: none; text-align: left;">
+                <span style="font-size: 14px; font-weight: bold; color: ${textColor};">📜 ${formatInline(unfoldTitle, primary)}</span>
+              </td>
+              <td style="padding: 14px 18px; vertical-align: middle; border: none; text-align: right; white-space: nowrap;">
+                <span style="font-size: 11px; color: ${primary}; font-weight: bold; font-family: -apple-system, sans-serif;">轻触展开 ▼</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         <svg viewBox="0 0 600 280" style="width: 100%; max-width: 600px; height: 110px; display: block; margin: 0 auto; overflow: hidden; transition: all 0.35s ease; background-color: #ffffff;" xmlns="http://www.w3.org/2000/svg">
           <animate attributeName="height" begin="click; touchstart" from="110px" to="280px" dur="0.35s" fill="freeze" restart="never" />
@@ -1311,14 +1434,10 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       if (isMacosGlass) {
         htmlParts.push(`
           <section style="margin:36px auto 24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
-            <section style="display:inline-block;padding:12px 24px;background-color:#ffffff;background-image:linear-gradient(135deg,rgba(255,255,255,0.98) 0%,rgba(238,245,255,0.92) 100%);border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.18);border-radius:24px;box-shadow:inset 0 1px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.12),0 2px 6px rgba(0,0,0,0.02);box-sizing:border-box;">
-              <section style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px;">
-                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
-                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
-                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.5);"></span>
-              </section>
-              <h1 style="margin:0;font-size:${fontSize + 6}px;font-weight:900;color:#0071e3;letter-spacing:0.5px;line-height:1.4;">
-                ${formatInline(text, primary)}
+            <section style="display:inline-block;padding:12px 24px;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border:1px solid rgba(0,113,227,0.16);border-radius:24px;box-shadow:0 6px 20px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+              ${renderMacosTrafficLights('', '#0071e3', 'center')}
+              <h1 style="margin:0;font-size:${fontSize + 6}px;font-weight:900;color:#0071e3;letter-spacing:0.5px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
+                <span style="color:#0071e3;font-size:${fontSize + 6}px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
               </h1>
             </section>
           </section>
@@ -1343,11 +1462,21 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       if (isMacosGlass) {
         htmlParts.push(`
           <section style="margin:34px 0 18px 0;box-sizing:border-box;">
-            <section style="display:inline-block;padding:8px 16px;background-color:#ffffff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border-radius:14px;border:1px solid rgba(0,113,227,0.16);box-shadow:inset 0 1px 1px #ffffff,0 4px 14px rgba(0,113,227,0.06);box-sizing:border-box;">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 8px rgba(0,113,227,0.5);margin-right:8px;vertical-align:middle;"></span>
-              <h2 style="display:inline-block;margin:0;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;vertical-align:middle;">
-                ${formatInline(text, primary)}
-              </h2>
+            <section style="display:inline-block;padding:8px 16px;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border-radius:14px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 14px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+              <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
+                <tbody>
+                  <tr style="border:none;background:transparent !important;">
+                    <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:12px;">
+                      <span style="display:block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 8px rgba(0,113,227,0.5);"></span>
+                    </td>
+                    <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
+                      <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
+                        ${formatInline(text, primary)}
+                      </h2>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </section>
           </section>
         `);
@@ -1370,11 +1499,21 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       const text = trimmed.slice(4);
       if (isMacosGlass) {
         htmlParts.push(`
-          <section style="margin:24px 0 12px 0;box-sizing:border-box;">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:#38bdf8;box-shadow:0 0 6px rgba(56,189,248,0.6);margin-right:8px;vertical-align:middle;"></span>
-            <h3 style="display:inline-block;margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;vertical-align:middle;">
-              ${formatInline(text, primary)}
-            </h3>
+          <section style="margin:24px 0 12px 0;box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+            <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
+              <tbody>
+                <tr style="border:none;background:transparent !important;">
+                  <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:10px;">
+                    <span style="display:block;width:6px;height:6px;border-radius:50%;background-color:#38bdf8;box-shadow:0 0 6px rgba(56,189,248,0.6);"></span>
+                  </td>
+                  <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
+                    <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
+                      ${formatInline(text, primary)}
+                    </h3>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </section>
         `);
       } else {
@@ -1396,15 +1535,10 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       const text = trimmed.replace(/^>\s?/, '');
       if (isMacosGlass) {
         htmlParts.push(`
-          <section style="margin:22px 0;padding:16px 20px;background-color:#ffffff;background-image:linear-gradient(145deg,rgba(255,255,255,0.98) 0%,rgba(240,246,255,0.85) 100%);border-radius:16px;border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.12);box-shadow:inset 0 1.5px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.07);box-sizing:border-box;">
-            <section style="display:flex;align-items:center;gap:5px;margin-bottom:10px;">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-              <span style="font-size:11px;font-weight:700;color:#0071e3;margin-left:6px;letter-spacing:0.5px;text-transform:uppercase;">INSIGHT</span>
-            </section>
-            <p style="margin:0;font-size:${fontSize}px;line-height:${lineHeight};color:#1d1d1f;font-weight:500;text-align:justify;">
-              <span style="color:#1d1d1f;font-size:${fontSize}px;">${formatInline(text, primary)}</span>
+          <section style="margin:22px 0;padding:16px 20px;background-color:#f4f8ff;background-image:linear-gradient(145deg,#ffffff 0%,#f0f6ff 100%);border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+            ${renderMacosTrafficLights('INSIGHT', '#0071e3')}
+            <p style="margin:0;font-size:${fontSize}px;line-height:${lineHeight};color:#1d1d1f;font-weight:400;letter-spacing:0.5px;text-align:justify;word-break:break-all;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif;">
+              <span style="color:#1d1d1f;font-size:${fontSize}px;line-height:${lineHeight};font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
             </p>
           </section>
         `);
@@ -1442,7 +1576,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 10. 图片处理（彻底移除微信 UEditor 严禁的 figure/figcaption 标签，100% 采用微信标准 section 容器并注入 data-src 与 data-type 属性，确保图片抓取与懒加载零失效）
+    // 10. 图片处理（彻底移除微信 UEditor 严禁的 figure/figcaption 标签，100% 采用微信标准 section 容器并注入 data-src 与精确 data-type 属性，确保图片抓取与懒加载零失效）
     const mdImgMatch = trimmed.match(/^!\[(.*?)\]\(\s*([^\s'")]+)(?:\s+["'].*?["'])?\s*\)$/);
     const htmlImgMatch = !mdImgMatch && trimmed.match(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/i);
 
@@ -1450,35 +1584,34 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       let alt = '';
-      let src = '';
+      let rawSrc = '';
 
       if (mdImgMatch) {
         alt = mdImgMatch[1] || '';
-        src = mdImgMatch[2] || '';
+        rawSrc = mdImgMatch[2] || '';
       } else {
-        src = htmlImgMatch[1] || '';
+        rawSrc = htmlImgMatch[1] || '';
         const altMatch = trimmed.match(/alt=["']([^"']*)["']/i);
         alt = altMatch ? altMatch[1] : '';
       }
 
+      const src = cleanImageUrl(rawSrc);
+      const imgType = detectImgDataType(src);
+
       if (src) {
         if (isMacosGlass) {
           htmlParts.push(`
-            <section style="margin:26px auto;text-align:center;box-sizing:border-box;max-width:100%;background-color:#ffffff;background-image:linear-gradient(135deg,rgba(255,255,255,0.98) 0%,rgba(240,246,255,0.85) 100%);padding:10px 10px 14px 10px;border-radius:18px;border:1px solid rgba(255,255,255,0.95);outline:1px solid rgba(0,113,227,0.14);box-shadow:inset 0 1px 1px #ffffff,0 8px 24px -4px rgba(0,113,227,0.08);">
-              <section style="display:flex;align-items:center;gap:5px;padding:2px 8px 8px 6px;">
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-              </section>
-              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="png" style="display:block;width:100% !important;max-width:100% !important;height:auto !important;border-radius:12px;margin:0 auto;box-sizing:border-box;" />
-              ${alt ? `<section style="margin-top:10px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;">${escapeHtml(alt)}</span></section>` : ''}
+            <section style="margin:24px auto;text-align:center;box-sizing:border-box;max-width:100%;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);padding:10px 10px 14px 10px;border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06); -webkit-font-smoothing: antialiased;">
+              ${renderMacosTrafficLights('', '#0071e3')}
+              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="${imgType}" referrerpolicy="no-referrer" style="display:block;width:100% !important;max-width:100% !important;height:auto !important;border-radius:10px;margin:0 auto;box-sizing:border-box;" />
+              ${alt ? `<section style="margin-top:10px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;">${escapeHtml(alt)}</span></section>` : ''}
             </section>
           `);
         } else {
           htmlParts.push(`
             <section style="margin:24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
-              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="png" style="display:block;max-width:100% !important;height:auto !important;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin:0 auto;box-sizing:border-box;" />
-              ${alt ? `<section style="margin-top:8px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;">${escapeHtml(alt)}</span></section>` : ''}
+              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="${imgType}" referrerpolicy="no-referrer" style="display:block;max-width:100% !important;height:auto !important;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin:0 auto;box-sizing:border-box;" />
+              ${alt ? `<section style="margin-top:8px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;">${escapeHtml(alt)}</span></section>` : ''}
             </section>
           `);
         }
@@ -1486,10 +1619,10 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       }
     }
 
-    // 11. 普通段落（双保险：内层包裹显式 span，彻底避免微信插入全局默认深灰黑）
+    // 11. 普通段落（双保险：内层包裹显式 span 与字体声明，彻底避免微信插入全局默认深灰黑或换行顺色）
     htmlParts.push(`
-      <p style="margin:16px 0;font-size:${fontSize}px;line-height:${lineHeight};letter-spacing:0.5px;color:${textColor};text-align:justify;word-break:break-word;box-sizing:border-box;">
-        <span style="color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};">${formatInline(trimmed, primary)}</span>
+      <p style="margin:16px 0;font-size:${fontSize}px;line-height:${lineHeight};letter-spacing:0.5px;color:${textColor};text-align:justify;word-break:break-all;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;">
+        <span style="color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;">${formatInline(trimmed, primary)}</span>
       </p>
     `);
   }
@@ -1510,10 +1643,11 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   flushList();
   flushTable();
 
-  // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，保证微信 UEditor 零清洗)
+  // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，背景纯白保持微信文章自然流转，内部组件呈现液态玻璃卡片质感)
   const containerStyle = isMacosGlass
-    ? `max-width:677px;margin:0 auto;padding:24px 16px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#f8fafc;background-image:linear-gradient(180deg,#f0f6ff 0%,#f8fafc 180px,#ffffff 100%);box-sizing:border-box;-webkit-font-smoothing:antialiased;border-radius:20px;border:1px solid #e2e8f0;box-shadow:0 12px 40px rgba(0,113,227,0.05);`
+    ? `max-width:677px;margin:0 auto;padding:18px 12px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`
     : `max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`;
+
 
   return `
     <section class="wechat-format-container" style="${containerStyle}">
@@ -1533,7 +1667,11 @@ function formatInline(text, primary) {
   // 0. 行内图片转义恢复：如果段落中包含行内图片，解析为合法的微信兼容 img 标签
   out = out.replace(
     /!\[(.*?)\]\(\s*([^\s'")]+)(?:\s+["'].*?["'])?\s*\)/g,
-    (match, alt, url) => `<img src="${url}" data-src="${url}" alt="${alt}" data-type="png" style="display:inline-block;max-width:100% !important;height:auto !important;border-radius:8px;vertical-align:middle;margin:4px 0;" />`
+    (match, alt, url) => {
+      const safe = cleanImageUrl(url);
+      const dt = detectImgDataType(safe);
+      return `<img src="${safe}" data-src="${safe}" alt="${alt}" data-type="${dt}" referrerpolicy="no-referrer" style="display:inline-block;max-width:100% !important;height:auto !important;border-radius:8px;vertical-align:middle;margin:4px 0;" />`;
+    }
   );
 
   // 1. 加粗 **text** -> 带有主题强调色或深色加粗
