@@ -30,6 +30,7 @@ import {
   Edit,
   Download,
   Upload,
+  Flame,
 } from 'lucide-react';
 
 import { BackgroundGrid } from './components/ui/BackgroundGrid.jsx';
@@ -37,6 +38,7 @@ import { SpotlightCard } from './components/ui/SpotlightCard.jsx';
 import { ShimmerButton } from './components/ui/ShimmerButton.jsx';
 import { ApiSettingsModal } from './components/ApiSettingsModal.jsx';
 import { ImagePickerModal } from './components/ImagePickerModal.jsx';
+import { HotTrendsModal } from './components/HotTrendsModal.jsx';
 import { WechatVisualEditor } from './components/WechatEditor/WechatVisualEditor.jsx';
 import { cn } from './lib/utils.js';
 
@@ -67,6 +69,7 @@ export default function App() {
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const modelDropdownRef = useRef(null);
   const [isWritingImagePickerOpen, setIsWritingImagePickerOpen] = useState(false);
+  const [isHotTrendsOpen, setIsHotTrendsOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
 
   // 点击下拉菜单外部自动收起
@@ -814,6 +817,17 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsHotTrendsOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-purple-500/15 hover:from-amber-500/25 hover:via-rose-500/25 hover:to-purple-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 transition-all shadow-sm group active:scale-95"
+                title="全网爆款热点雷达：聚合知乎、头条、B站、百度等实时热门话题并智能拆解复刻"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-400 group-hover:animate-bounce" />
+                <span>🔥 爆款雷达 · 全网热点推荐</span>
+                <Sparkles className="w-3 h-3 text-rose-400 hidden sm:inline-block" />
+              </button>
+
               {(topic || articleMd || titlesData) && (
                 <button
                   onClick={handleResetDraft}
@@ -822,7 +836,7 @@ export default function App() {
                   <Trash2 className="w-3 h-3" /> 清空重置
                 </button>
               )}
-              <span className="text-xs text-slate-400 hidden sm:block">一句话表达需求与干货目标</span>
+              <span className="text-xs text-slate-400 hidden lg:block">一句话表达需求与干货目标</span>
             </div>
           </div>
 
@@ -1438,6 +1452,20 @@ export default function App() {
         currentConfig={config}
         modelsList={modelsList}
         onUpdateModelsList={handleUpdateModelsList}
+      />
+
+      {/* 全网实时爆款热点雷达 Modal */}
+      <HotTrendsModal
+        isOpen={isHotTrendsOpen}
+        onClose={() => setIsHotTrendsOpen(false)}
+        onSelectTopic={(selectedTopic, extraNotes) => {
+          setTopic(selectedTopic);
+          if (extraNotes) {
+            setExtra(extraNotes);
+          }
+          showToast('✨ 已载入爆款选题与切入素材，可立即点击下方按钮生成标题！');
+        }}
+        apiConfig={config}
       />
 
       {/* Toast Notification */}

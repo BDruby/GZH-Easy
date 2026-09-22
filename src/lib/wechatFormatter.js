@@ -11,6 +11,14 @@ export const WECHAT_THEMES = [
     desc: 'Apple 概念液态微晶玻璃设计语言，晶莹通透、高光折射、红黄绿窗口质感，100% 微信公众号排版认证',
   },
   {
+    id: 'claude-anthropic',
+    name: '✦ Claude · 智性思辨 (Anthropic)',
+    primaryColor: '#d97757',
+    secondaryColor: '#faf9f5',
+    textColor: '#262320',
+    desc: 'Anthropic / Claude.ai 人文设计语言：暖陶土色、温润燕麦米色纸质感、优雅八角星芒徽章、人文衬线深度阅读，100% 微信公众号排版认证',
+  },
+  {
     id: 'moyu-green',
     name: '🎣 摸鱼绿 (推荐)',
     primaryColor: '#059669',
@@ -146,27 +154,41 @@ export function cleanImageUrl(url) {
 }
 
 /**
- * 微信公众号专用：苹果 macOS 红黄绿三色窗口小圆点 + 标题头部（使用原生无边框 Table 布局，彻底免疫微信 text-align: justify 导致的圆点分散错位与标题折行）
+ * 微信公众号专用：苹果 macOS 红黄绿三色窗口小圆点 + 标题头部
+ * 采用原生无边框 Table + 原生内联 SVG 架构：
+ * 1. 彻底根除微信后台 UEditor 强力清洗“空 span 标签”导致三色圆点消失的顽疾！
+ * 2. 彻底杜绝文字折行或与圆点错位
  */
 function renderMacosTrafficLights(title = '', titleColor = '#0071e3', align = 'left') {
   const marginStyle = align === 'center' ? 'margin: 0 auto 14px auto;' : 'margin: 0 0 14px 0;';
+  const trafficLightsSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="39" height="11" viewBox="0 0 39 11" style="display: block; width: 39px; height: 11px;">
+      <circle cx="5.5" cy="5.5" r="4.5" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5" />
+      <circle cx="19.5" cy="5.5" r="4.5" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5" />
+      <circle cx="33.5" cy="5.5" r="4.5" fill="#27c93f" stroke="#1aab29" stroke-width="0.5" />
+    </svg>
+  `.trim();
+
+  if (!title) {
+    return `
+      <section style="${align === 'center' ? 'text-align: center; margin: 0 auto 14px auto;' : 'text-align: left; margin: 0 0 14px 0;'} line-height: 1; box-sizing: border-box;">
+        <section style="display: inline-block; vertical-align: middle;">
+          ${trafficLightsSvg}
+        </section>
+      </section>
+    `.trim();
+  }
+
   return `
     <table style="border-collapse: collapse; border: none; ${marginStyle} padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
       <tbody>
         <tr style="border: none; background: transparent !important;">
-          <td style="border: none; padding: 0 5px 0 0; vertical-align: middle; line-height: 1; width: 13px;">
-            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #ff5f56; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
+          <td style="border: none; padding: 0 8px 0 0; vertical-align: middle; line-height: 1; width: 39px;">
+            ${trafficLightsSvg}
           </td>
-          <td style="border: none; padding: 0 5px 0 0; vertical-align: middle; line-height: 1; width: 13px;">
-            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #ffbd2e; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-          </td>
-          <td style="border: none; padding: 0 ${title ? '8px' : '0'} 0 0; vertical-align: middle; line-height: 1; width: ${title ? '16px' : '8px'};">
-            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: #27c93f; box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);"></span>
-          </td>
-          ${title ? `
           <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
             <span style="display: inline-block; font-size: 11px; font-weight: 700; color: ${titleColor}; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap !important; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;">${title}</span>
-          </td>` : ''}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -174,18 +196,63 @@ function renderMacosTrafficLights(title = '', titleColor = '#0071e3', align = 'l
 }
 
 /**
- * 微信公众号专用：macOS 单色状态圆点徽章头部（Table 锁死，绝不分散）
+ * 微信公众号专用：macOS 单色状态圆点徽章头部（内联 SVG + Table 锁死，绝不分散或被微信过滤）
  */
 function renderMacosSingleDotHeader(dotColor, title, titleColor) {
+  const dotSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 9 9" style="display: block; width: 9px; height: 9px;">
+      <circle cx="4.5" cy="4.5" r="4" fill="${dotColor}" />
+    </svg>
+  `.trim();
   return `
     <table style="border-collapse: collapse; border: none; margin: 0 0 10px 0; padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
       <tbody>
         <tr style="border: none; background: transparent !important;">
-          <td style="border: none; padding: 0 6px 0 0; vertical-align: middle; line-height: 1; width: 14px;">
-            <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background-color: ${dotColor}; box-shadow: 0 0 6px ${hexToRgba(dotColor, 0.45)};"></span>
+          <td style="border: none; padding: 0 6px 0 0; vertical-align: middle; line-height: 1; width: 10px;">
+            ${dotSvg}
           </td>
           <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
             <span style="display: inline-block; color: ${titleColor}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; font-family: Menlo, Monaco, monospace; text-transform: uppercase; white-space: nowrap !important;">${title}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  `.trim();
+}
+
+/**
+ * 渲染 Claude / Anthropic 专属八角星芒 (Sparkle SVG)
+ * 纯内联矢量，绝不被微信过滤，色值可动态定制
+ */
+function renderClaudeSparkleSvg(color = '#d97757', size = 14) {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" style="display:inline-block;vertical-align:middle;width:${size}px;height:${size}px;line-height:1;">
+      <path d="M12 2C12.3 7.5 16.5 11.7 22 12C16.5 12.3 12.3 16.5 12 22C11.7 16.5 7.5 12.3 2 12C7.5 11.7 11.7 7.5 12 2Z" fill="${color}" />
+      <circle cx="12" cy="12" r="2.2" fill="#faf9f5" />
+    </svg>
+  `.trim();
+}
+
+/**
+ * 渲染 Claude.ai 卡片顶栏徽标（八角星芒 + 人文大写标签 + 雅致分割细线）
+ */
+function renderClaudeCardHeader(label, color = '#d97757') {
+  return `
+    <table data-ignore-width="true" style="width:100% !important;border-collapse:collapse;border:none;margin:0 0 12px 0;padding:0;background:transparent !important;table-layout:auto;">
+      <tbody>
+        <tr style="border:none;background:transparent !important;">
+          <td style="padding:0;border:none;vertical-align:middle;line-height:1;text-align:left;">
+            <section style="display:inline-block;vertical-align:middle;line-height:1;">
+              ${renderClaudeSparkleSvg(color, 14)}
+              <span style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;color:${color};text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;vertical-align:middle;margin-left:6px;">
+                ${label}
+              </span>
+            </section>
+          </td>
+          <td style="padding:0;border:none;vertical-align:middle;line-height:1;text-align:right;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="2" viewBox="0 0 36 2" style="display:inline-block;vertical-align:middle;width:36px;height:2px;">
+              <line x1="0" y1="1" x2="36" y2="1" stroke="${color}" stroke-width="1" stroke-opacity="0.35" stroke-linecap="round" />
+            </svg>
           </td>
         </tr>
       </tbody>
@@ -267,16 +334,26 @@ export async function prepareWechatImages(html) {
  * 2. 所有文本叶子节点显式注入 color 与 font-family，杜绝微信后台清洗覆盖默认黑字！
  * 3. 避免脆弱的 flex/gap，优先采用 table 与纯内联行内块，保证微信后台粘贴 100% 还原！
  */
-function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight, isMacosGlass }) {
+function renderCustomComponent(type, rawContent, { primary, secondary, textColor, fontSize, lineHeight, isMacosGlass, isClaude }) {
   const content = (rawContent || '').trim();
   const lowerType = (type || '').toLowerCase();
 
   // 1. 导读卡 :::lead
   if (lowerType === 'lead') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 26px 0; padding: 20px 22px; background-color: #faf9f5; border: 1px solid rgba(217, 119, 87, 0.28); border-radius: 12px; box-sizing: border-box;">
+          ${renderClaudeCardHeader('LEAD IN · 导读', '#d97757')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #262320; letter-spacing: 0.5px; text-align: justify; word-break: break-all; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <span style="color: #262320; font-size: ${fontSize}px; line-height: ${lineHeight};">${formatInline(content, primary)}</span>
+          </p>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 18px 20px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 16px; box-shadow: 0 4px 18px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
-          ${renderMacosTrafficLights('macOS · LEAD IN', '#0071e3')}
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 18px 20px; background-color: #f4f8ff; border: 1px solid rgba(0, 113, 227, 0.18); border-radius: 16px; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosTrafficLights('LEAD IN', '#0071e3')}
           <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; color: #1d1d1f; font-weight: 400; letter-spacing: 0.5px; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">
             <span style="color: #1d1d1f; font-size: ${fontSize}px; line-height: ${lineHeight}; letter-spacing: 0.5px; font-weight: 400; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;">${formatInline(content, primary)}</span>
           </p>
@@ -286,7 +363,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const bg = hexToRgba(primary, 0.08);
     const border = hexToRgba(primary, 0.25);
     return `
-      <section style="margin: 24px 0; padding: 16px 18px; background-color: ${bg}; border: 1px solid ${border}; border-left: 5px solid ${primary}; border-radius: 8px; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 24px 0; padding: 16px 18px; background-color: ${bg}; border: 1px solid ${border}; border-left: 5px solid ${primary}; border-radius: 8px; box-sizing: border-box;">
         <div style="font-size: 12px; font-weight: bold; color: ${primary}; letter-spacing: 1px; margin-bottom: 6px;">
           📌 导读 · LEAD IN
         </div>
@@ -299,9 +376,21 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 2. 居中金句 :::quote
   if (lowerType === 'quote') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 28px 0; padding: 22px 24px; background-color: #faf9f5; border-radius: 14px; border: 1px solid rgba(217, 119, 87, 0.25); text-align: center; box-sizing: border-box;">
+          <section style="text-align: center; margin-bottom: 10px; line-height: 1;">
+            ${renderClaudeSparkleSvg('#d97757', 18)}
+          </section>
+          <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: 600; color: #262320; line-height: 1.75; letter-spacing: 0.6px; font-family: 'Newsreader', Georgia, 'Songti SC', 'Source Han Serif SC', serif;">
+            <span style="color: #262320; font-weight: 600; font-family: 'Newsreader', Georgia, 'Songti SC', 'Source Han Serif SC', serif;">“${formatInline(content, primary)}”</span>
+          </p>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 26px 0; padding: 22px 24px; background-color: #f4f8ff; background-image: linear-gradient(145deg, #ffffff 0%, #f4f8ff 100%); border-radius: 18px; border: 1px solid rgba(0,113,227,0.16); text-align: center; box-shadow: 0 6px 20px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+        <section data-ignore-width="true" style="margin: 26px 0; padding: 22px 24px; background-color: #f4f8ff; border-radius: 18px; border: 1px solid rgba(0,113,227,0.18); text-align: center; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
           ${renderMacosTrafficLights('', '#0071e3', 'center')}
           <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: 600; color: #0071e3; line-height: 1.65; letter-spacing: 0.5px; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
             <span style="color: #0071e3; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">“${formatInline(content, primary)}”</span>
@@ -312,7 +401,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const bg = hexToRgba(primary, 0.06);
     const border = hexToRgba(primary, 0.35);
     return `
-      <section style="margin: 28px 0; padding: 20px 22px; background-color: ${bg}; border: 1px dashed ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 28px 0; padding: 20px 22px; background-color: ${bg}; border: 1px dashed ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
         <div style="font-size: 26px; color: ${primary}; line-height: 1; margin-bottom: 6px; font-family: Georgia, serif;">“</div>
         <p style="margin: 0; font-size: ${fontSize + 1}px; font-weight: bold; color: ${primary}; line-height: 1.6; letter-spacing: 0.5px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
           <span style="color: ${primary}; font-weight: bold;">${formatInline(content, primary)}</span>
@@ -322,7 +411,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // 3. 步骤徽章 :::step（彻底抛弃 table，使用纯行内块 section，防止微信全局 table 劫持导致左侧序号异常拉宽）
+  // 3. 步骤徽章 :::step（使用纯行内块 section，防止微信全局 table 劫持导致左侧序号异常拉宽）
   if (lowerType === 'step') {
     const parts = content.split(/[|｜]/);
     let stepTag = 'STEP 01';
@@ -331,10 +420,22 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       stepTag = parts[0].trim();
       stepText = parts.slice(1).join('｜').trim();
     }
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
+          <section style="display: inline-block; vertical-align: middle; padding: 4px 12px; background-color: #f5ebe6; border-radius: 6px; border: 1px solid rgba(217, 119, 87, 0.35); margin-right: 10px; box-sizing: border-box;">
+            <span style="color: #d97757; font-size: 11px; font-weight: 800; letter-spacing: 1.2px; font-family: -apple-system, BlinkMacSystemFont, monospace; line-height: 1; text-align: center; white-space: nowrap; display: inline-block;">${stepTag}</span>
+          </section>
+          <span style="display: inline-block; vertical-align: middle; font-size: ${fontSize + 2}px; font-weight: 700; color: #262320; line-height: 1.4; letter-spacing: 0.4px; font-family: 'Newsreader', Georgia, 'Songti SC', serif;">
+            ${formatInline(stepText, primary)}
+          </span>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
-          <section style="display: inline-block; vertical-align: middle; padding: 4px 12px; background-color: #ffffff; background-image: linear-gradient(135deg, #e0f2fe, #dbeafe); border-radius: 8px; border: 1px solid rgba(0,113,227,0.25); box-shadow: inset 0 1px 1px #ffffff, 0 2px 6px rgba(0,113,227,0.08); margin-right: 10px; box-sizing: border-box;">
+        <section data-ignore-width="true" style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
+          <section style="display: inline-block; vertical-align: middle; padding: 4px 12px; background-color: #e0f2fe; border-radius: 8px; border: 1px solid rgba(0,113,227,0.25); margin-right: 10px; box-sizing: border-box;">
             <span style="color: #0071e3; font-size: 11px; font-weight: 800; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, monospace; line-height: 1; text-align: center; white-space: nowrap; display: inline-block;">${stepTag}</span>
           </section>
           <span style="display: inline-block; vertical-align: middle; font-size: ${fontSize + 2}px; font-weight: 800; color: #1d1d1f; line-height: 1.4; letter-spacing: 0.3px;">
@@ -344,7 +445,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       `;
     }
     return `
-      <section style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
+      <section data-ignore-width="true" style="margin: 28px 0 16px 0; box-sizing: border-box; line-height: 1.5;">
         <section style="display: inline-block; vertical-align: middle; padding: 4px 10px; background-color: ${primary}; border-radius: 6px; margin-right: 10px; box-sizing: border-box;">
           <span style="color: #ffffff; font-size: 12px; font-weight: bold; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, monospace; line-height: 1; text-align: center; white-space: nowrap; display: inline-block;">${stepTag}</span>
         </section>
@@ -355,21 +456,49 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     `;
   }
 
-  // 4. 作者签名栏 :::author（彻底解决头像塌陷与文字顺色：使用 fixed table 锁死左列，头像使用纯 section 盒模型，文字显式 span 包裹）
+  // 4. 作者签名栏 :::author（使用 fixed table 锁死左列，头像使用纯 section 盒模型，文字显式 span 包裹）
   if (lowerType === 'author') {
     const parts = content.split(/[|｜]/);
     const authorName = parts[0]?.trim() || '本文作者';
     const authorBio = parts[1]?.trim() || '专注于深度思考、优质干货与实战复盘。关注我们，持续获得认知进化。';
     const initialChar = authorName.slice(0, 1);
 
-    if (isMacosGlass) {
+    if (isClaude) {
       return `
-        <section style="margin: 36px 0 24px 0; padding: 18px 22px; background-color: #ffffff; background-image: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(240,246,255,0.85) 100%); border: 1px solid rgba(255,255,255,0.95); outline: 1px solid rgba(0,113,227,0.15); border-radius: 16px; box-shadow: inset 0 1px 1px #ffffff, 0 8px 24px -4px rgba(0,113,227,0.08); box-sizing: border-box;">
+        <section data-ignore-width="true" style="margin: 36px 0 24px 0; padding: 18px 22px; background-color: #faf9f5; border: 1px solid rgba(217, 119, 87, 0.28); border-radius: 12px; box-sizing: border-box;">
           <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
             <tbody>
               <tr>
                 <td style="width: 52px; vertical-align: middle; padding: 0; border: none; text-align: center;">
-                  <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: #0071e3; background-image: linear-gradient(135deg, #38bdf8, #0071e3); text-align: center; margin: 0 auto; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35);">
+                  <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: #d97757; text-align: center; margin: 0 auto; box-sizing: border-box;">
+                    <span style="color: #faf9f5; font-size: 18px; font-weight: bold; line-height: 44px; display: inline-block; text-align: center; font-family: 'Newsreader', Georgia, serif;">${initialChar}</span>
+                  </section>
+                </td>
+                <td style="vertical-align: middle; padding: 0 0 0 14px; border: none;">
+                  <section style="margin: 0; padding: 0;">
+                    <section style="font-size: 15px; font-weight: bold; line-height: 1.4; margin-bottom: 4px;">
+                      <span style="color: #262320; font-size: 15px; font-weight: bold; font-family: 'Newsreader', Georgia, serif;">${formatInline(authorName, primary)}</span>
+                    </section>
+                    <section style="font-size: 13px; line-height: 1.5; margin: 0;">
+                      <span style="color: #6b635b; font-size: 13px;">${formatInline(authorBio, primary)}</span>
+                    </section>
+                  </section>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      `;
+    }
+
+    if (isMacosGlass) {
+      return `
+        <section data-ignore-width="true" style="margin: 36px 0 24px 0; padding: 18px 22px; background-color: #f8fafc; border: 1px solid rgba(0,113,227,0.18); border-radius: 16px; box-sizing: border-box;">
+          <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
+            <tbody>
+              <tr>
+                <td style="width: 52px; vertical-align: middle; padding: 0; border: none; text-align: center;">
+                  <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: #0071e3; text-align: center; margin: 0 auto; box-sizing: border-box;">
                     <span style="color: #ffffff; font-size: 18px; font-weight: bold; line-height: 44px; display: inline-block; text-align: center;">${initialChar}</span>
                   </section>
                 </td>
@@ -391,12 +520,12 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     }
 
     return `
-      <section style="margin: 36px 0 24px 0; padding: 18px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 36px 0 24px 0; padding: 18px 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box;">
         <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: none; margin: 0; padding: 0; background: transparent;">
           <tbody>
             <tr>
               <td style="width: 52px; vertical-align: middle; padding: 0; border: none; text-align: center;">
-                <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: ${primary}; text-align: center; margin: 0 auto; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);">
+                <section style="width: 44px; height: 44px; line-height: 44px; border-radius: 22px; background-color: ${primary}; text-align: center; margin: 0 auto; box-sizing: border-box;">
                   <span style="color: #ffffff; font-size: 18px; font-weight: bold; line-height: 44px; display: inline-block; text-align: center;">${initialChar}</span>
                 </section>
               </td>
@@ -419,10 +548,20 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 5. 核心要点提示 :::tip
   if (lowerType === 'tip') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 18px 20px; background-color: #faf9f5; border: 1px solid rgba(217, 119, 87, 0.25); border-left: 4px solid #d97757; border-radius: 8px; box-sizing: border-box;">
+          ${renderClaudeCardHeader('KEY TAKEAWAY · 核心要点', '#d97757')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <span style="color: #262320; font-size: ${fontSize}px; line-height: ${lineHeight};">${formatInline(content, '#d97757')}</span>
+          </p>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 16px 20px; background-color: #f0fdf4; background-image: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); border: 1px solid rgba(22, 163, 74, 0.2); border-radius: 16px; box-shadow: 0 4px 16px rgba(22,163,74,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
-          ${renderMacosSingleDotHeader('#16a34a', 'macOS · 核心要点 TIP', '#15803d')}
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 16px 20px; background-color: #f0fdf4; border: 1px solid rgba(22, 163, 74, 0.2); border-radius: 16px; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#16a34a', '核心要点 · TIP', '#15803d')}
           <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
             <span style="color: #166534; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, '#15803d')}</span>
           </p>
@@ -430,7 +569,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       `;
     }
     return `
-      <section style="margin: 24px 0; padding: 14px 18px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 24px 0; padding: 14px 18px; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 8px; box-sizing: border-box;">
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
           <span style="color: #15803d; font-size: 13px; font-weight: bold;">💡 核心要点 / TIP</span>
         </section>
@@ -443,10 +582,20 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 6. 避坑警示注意 :::warning
   if (lowerType === 'warning') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 18px 20px; background-color: #fdf6f0; border: 1px solid rgba(194, 65, 12, 0.25); border-left: 4px solid #c2410c; border-radius: 8px; box-sizing: border-box;">
+          ${renderClaudeCardHeader('WARNING · 避坑警示', '#c2410c')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <span style="color: #7c2d12; font-size: ${fontSize}px; line-height: ${lineHeight};">${formatInline(content, '#c2410c')}</span>
+          </p>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 16px 20px; background-color: #fff7ed; background-image: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 16px; box-shadow: 0 4px 16px rgba(234,88,12,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
-          ${renderMacosSingleDotHeader('#ea580c', 'macOS · 避坑警示 WARNING', '#c2410c')}
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 16px 20px; background-color: #fff7ed; border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 16px; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#ea580c', '避坑警示 · WARNING', '#c2410c')}
           <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
             <span style="color: #9a3412; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, '#c2410c')}</span>
           </p>
@@ -454,7 +603,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       `;
     }
     return `
-      <section style="margin: 24px 0; padding: 14px 18px; background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #ea580c; border-radius: 8px; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 24px 0; padding: 14px 18px; background-color: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #ea580c; border-radius: 8px; box-sizing: border-box;">
         <section style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
           <span style="color: #c2410c; font-size: 13px; font-weight: bold;">⚠️ 避坑提醒 / WARNING</span>
         </section>
@@ -470,9 +619,21 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const parts = content.split(/[|｜]/);
     const val = parts[0]?.trim() || '1000W+';
     const label = parts[1]?.trim() || '核心统计指标数据';
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 28px 0; padding: 24px 20px; background-color: #faf9f5; border: 1px solid rgba(217, 119, 87, 0.25); border-radius: 12px; text-align: center; box-sizing: border-box;">
+          <section style="font-size: 36px; font-weight: 800; line-height: 1.2; letter-spacing: 0.5px; font-family: 'Newsreader', Georgia, serif; text-align: center;">
+            <span style="color: #d97757; font-size: 36px; font-weight: 800; font-family: 'Newsreader', Georgia, serif;">${formatInline(val, primary)}</span>
+          </section>
+          <section style="font-size: 13px; font-weight: 600; margin-top: 8px; letter-spacing: 0.8px; text-align: center;">
+            <span style="color: #6b635b; font-size: 13px;">${formatInline(label, primary)}</span>
+          </section>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 28px 0; padding: 24px 20px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 18px; text-align: center; box-shadow: 0 6px 20px rgba(0,113,227,0.06); box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+        <section data-ignore-width="true" style="margin: 28px 0; padding: 24px 20px; background-color: #f4f8ff; border: 1px solid rgba(0, 113, 227, 0.18); border-radius: 18px; text-align: center; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
           <section style="font-size: 34px; font-weight: 900; line-height: 1.2; letter-spacing: 1px; font-family: -apple-system, BlinkMacSystemFont, Menlo, Monaco, sans-serif; text-align: center;">
             <span style="color: #0071e3; font-size: 34px; font-weight: 900;">${formatInline(val, primary)}</span>
           </section>
@@ -485,7 +646,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
     const bg = hexToRgba(primary, 0.06);
     const border = hexToRgba(primary, 0.2);
     return `
-      <section style="margin: 28px 0; padding: 22px 20px; background-color: ${bg}; border: 1px solid ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
+      <section data-ignore-width="true" style="margin: 28px 0; padding: 22px 20px; background-color: ${bg}; border: 1px solid ${border}; border-radius: 12px; text-align: center; box-sizing: border-box;">
         <section style="font-size: 32px; font-weight: 900; line-height: 1.2; letter-spacing: 1px; font-family: Menlo, Monaco, Consolas, sans-serif; text-align: center;">
           <span style="color: ${primary}; font-size: 32px; font-weight: 900;">${formatInline(val, primary)}</span>
         </section>
@@ -498,10 +659,20 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 8. 票据对比卡 :::card
   if (lowerType === 'card') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 18px 22px; background-color: #faf9f5; border: 1px solid rgba(217, 119, 87, 0.25); border-radius: 12px; box-sizing: border-box;">
+          ${renderClaudeCardHeader('INSIGHT NOTE · 深度拆解', '#d97757')}
+          <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; color: #262320; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <span style="color: #262320; font-size: ${fontSize}px; line-height: ${lineHeight};">${formatInline(content, primary)}</span>
+          </p>
+        </section>
+      `;
+    }
     if (isMacosGlass) {
       return `
-        <section style="margin: 24px 0; padding: 18px 22px; background-color: #f4f8ff; background-image: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%); border: 1px solid rgba(0, 113, 227, 0.16); border-radius: 16px; box-sizing: border-box; box-shadow: 0 4px 16px rgba(0,113,227,0.06); -webkit-font-smoothing: antialiased;">
-          ${renderMacosSingleDotHeader('#0071e3', 'macOS · CARD NOTE', '#0071e3')}
+        <section data-ignore-width="true" style="margin: 24px 0; padding: 18px 22px; background-color: #f4f8ff; border: 1px solid rgba(0, 113, 227, 0.18); border-radius: 16px; box-sizing: border-box; -webkit-font-smoothing: antialiased;">
+          ${renderMacosSingleDotHeader('#0071e3', 'CARD NOTE', '#0071e3')}
           <p style="margin: 0; font-size: ${fontSize}px; line-height: ${lineHeight}; text-align: justify; word-break: break-all; color: #1d1d1f; -webkit-font-smoothing: antialiased; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">
             <span style="color: #1d1d1f; font-size: ${fontSize}px; line-height: ${lineHeight}; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;">${formatInline(content, primary)}</span>
           </p>
@@ -509,7 +680,7 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       `;
     }
     return `
-      <section style="margin: 24px 0; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; box-sizing: border-box; box-shadow: 0 2px 6px rgba(0,0,0,0.02);">
+      <section data-ignore-width="true" style="margin: 24px 0; padding: 16px 20px; background-color: #fefce8; border: 1px solid #fef08a; border-radius: 10px; box-sizing: border-box;">
         <section style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-bottom: 6px;">
           <span style="color: #854d0e; font-size: 12px; font-weight: bold;">🧾 深度拆解 · NOTE</span>
         </section>
@@ -585,8 +756,10 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
       const isLast = idx === items.length - 1;
       return `
         <section style="position: relative; padding-left: 26px; padding-bottom: ${isLast ? '6px' : '22px'}; border-left: 2px solid ${isLast ? 'transparent' : hexToRgba(primary, 0.35)}; box-sizing: border-box;">
-          <!-- 发光节点正圆徽章 (精准同轴负边距覆盖) -->
-          <section style="position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; border-radius: 7px; background-color: ${primary}; border: 2.5px solid #ffffff; box-shadow: 0 0 0 2px ${hexToRgba(primary, 0.45)}, 0 2px 6px ${hexToRgba(primary, 0.35)}; box-sizing: border-box;"></section>
+          <!-- 发光节点正圆徽章 (内联 SVG 矢量图标，彻底杜绝被微信作为空标签清除) -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" style="position: absolute; left: -8px; top: 2px; width: 14px; height: 14px; display: block;">
+            <circle cx="7" cy="7" r="5.5" fill="${primary}" stroke="#ffffff" stroke-width="2.5" />
+          </svg>
           <!-- 时间与节点标题 -->
           <section style="margin-bottom: 4px; line-height: 1.4;">
             <span style="display: inline-block; background-color: ${hexToRgba(primary, 0.1)}; color: ${primary}; font-size: 12px; font-weight: bold; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 2px 8px; border-radius: 4px; border: 1px solid ${hexToRgba(primary, 0.2)}; letter-spacing: 0.5px;">
@@ -668,6 +841,29 @@ function renderCustomComponent(type, rawContent, { primary, secondary, textColor
 
   // 14. 文末点赞三连仪式感卡 :::interact（彻底杜绝 table，使用 inline-block 药丸标签，保证居中永不错位）
   if (lowerType === 'interact') {
+    if (isClaude) {
+      return `
+        <section data-ignore-width="true" style="margin: 32px 0; padding: 20px 22px; background-color: #faf9f5; border-radius: 12px; text-align: center; box-sizing: border-box; border: 1px solid rgba(217, 119, 87, 0.25);">
+          <section style="text-align: center; margin-bottom: 8px; line-height: 1;">
+            ${renderClaudeSparkleSvg('#d97757', 16)}
+          </section>
+          <section style="font-size: 13px; font-weight: 600; margin-bottom: 14px; letter-spacing: 0.5px; text-align: center;">
+            <span style="color: #5c534b; font-size: 13px; font-weight: 600;">${formatInline(content || '如果觉得本文有启发，欢迎互动支持：', primary)}</span>
+          </section>
+          <section style="text-align: center; line-height: 1.8;">
+            <section style="display: inline-block; margin: 4px 6px; padding: 7px 18px; border-radius: 20px; background-color: #ffffff; border: 1px solid rgba(217, 119, 87, 0.3); vertical-align: middle;">
+              <span style="font-size: 13px; color: #262320; font-weight: 600; line-height: 1.4;">👍 点赞</span>
+            </section>
+            <section style="display: inline-block; margin: 4px 6px; padding: 7px 18px; border-radius: 20px; background-color: #ffffff; border: 1px solid rgba(217, 119, 87, 0.3); vertical-align: middle;">
+              <span style="font-size: 13px; color: #262320; font-weight: 600; line-height: 1.4;">🌟 在看</span>
+            </section>
+            <section style="display: inline-block; margin: 4px 6px; padding: 7px 18px; border-radius: 20px; background-color: #ffffff; border: 1px solid rgba(217, 119, 87, 0.3); vertical-align: middle;">
+              <span style="font-size: 13px; color: #262320; font-weight: 600; line-height: 1.4;">✈️ 分享好友</span>
+            </section>
+          </section>
+        </section>
+      `;
+    }
     return `
       <section style="margin: 30px 0; padding: 18px 20px; background-color: #fafafa; border-radius: 12px; text-align: center; box-sizing: border-box; border: 1px solid #eaeaea;">
         <section style="font-size: 13px; font-weight: 600; margin-bottom: 12px; letter-spacing: 0.5px; text-align: center;">
@@ -1174,6 +1370,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   const lineHeight = options.lineHeight || 1.8;
   const textColor = options.textColor || theme.textColor;
   const isMacosGlass = theme.id === 'macos27-glass';
+  const isClaude = theme.id === 'claude-anthropic';
 
   const lines = markdown.split('\n');
   const htmlParts = [];
@@ -1197,7 +1394,12 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     const listHtml = listBuffer
       .map((item, idx) => {
         let marker = '';
-        if (isMacosGlass) {
+        if (isClaude) {
+          marker =
+            listType === 'ol'
+              ? `<span style="display:inline-block;min-width:22px;height:18px;line-height:18px;background-color:#f5ebe6;border:1px solid rgba(217,119,87,0.3);border-radius:4px;font-size:11px;font-weight:700;color:#d97757;text-align:center;margin-right:8px;font-family:'Newsreader',Georgia,serif;vertical-align:middle;">${String(idx + 1).padStart(2, '0')}</span>`
+              : `<span style="display:inline-block;margin-right:8px;vertical-align:middle;line-height:1;">${renderClaudeSparkleSvg('#d97757', 11)}</span>`;
+        } else if (isMacosGlass) {
           marker =
             listType === 'ol'
               ? `<span style="display:inline-block;min-width:20px;height:18px;line-height:18px;background-color:#e0f2fe;border:1px solid rgba(0,113,227,0.22);border-radius:6px;font-size:11px;font-weight:800;color:#0071e3;text-align:center;margin-right:8px;box-shadow:inset 0 1px 1px #fff;font-family:Menlo,Monaco,monospace;vertical-align:middle;">${String(idx + 1).padStart(2, '0')}</span>`
@@ -1223,8 +1425,8 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     const header = tableRows[0];
     const body = tableRows.slice(1);
 
-    const headerThBg = isMacosGlass ? '#f0f6ff' : secondary;
-    const headerThColor = isMacosGlass ? '#0071e3' : primary;
+    const headerThBg = isClaude ? '#f5ebe6' : (isMacosGlass ? '#f0f6ff' : secondary);
+    const headerThColor = isClaude ? '#d97757' : (isMacosGlass ? '#0071e3' : primary);
 
     const headerHtml = `<tr>${header
       .map(
@@ -1236,7 +1438,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
     const bodyHtml = body
       .map(
         (row, rIdx) =>
-          `<tr style="background-color:${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'};">${row
+          `<tr style="background-color:${rIdx % 2 === 0 ? '#ffffff' : (isClaude ? '#faf9f5' : '#f8fafc')};">${row
             .map(
               (td) =>
                 `<td style="padding:9px 14px;border:1px solid #e2e8f0;font-size:${fontSize - 1}px;color:${textColor};line-height:1.6;"><span style="color:${textColor};">${formatInline(td, primary)}</span></td>`
@@ -1245,12 +1447,14 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       )
       .join('');
 
-    const tableWrapperStyle = isMacosGlass
+    const tableWrapperStyle = isClaude
+      ? `overflow-x:auto;margin:22px 0;border-radius:10px;border:1px solid rgba(217,119,87,0.25);box-shadow:0 2px 8px rgba(0,0,0,0.03);background-color:#ffffff;`
+      : isMacosGlass
       ? `overflow-x:auto;margin:22px 0;border-radius:14px;border:1px solid rgba(0,113,227,0.18);box-shadow:inset 0 1px 1px #fff,0 4px 16px rgba(0,113,227,0.06);background-color:#ffffff;`
       : `overflow-x:auto;margin:20px 0;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.03);background-color:#ffffff;`;
 
     htmlParts.push(
-      `<div style="${tableWrapperStyle}"><table style="width:100%;border-collapse:collapse;text-align:left;font-size:${fontSize - 1}px;margin:0;background-color:#ffffff;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table></div>`
+      `<div data-ignore-width="true" style="${tableWrapperStyle}"><table style="width:100%;border-collapse:collapse;text-align:left;font-size:${fontSize - 1}px;margin:0;background-color:#ffffff;"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table></div>`
     );
     inTable = false;
     tableRows = [];
@@ -1271,19 +1475,40 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       } else {
         inCodeBlock = false;
         const codeContent = escapeHtml(codeBuffer.join('\n'));
-        if (isMacosGlass) {
+        if (isClaude) {
           htmlParts.push(`
-            <section style="margin:22px 0;border-radius:16px;overflow:hidden;background-color:#16171d;border:1px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 1px rgba(255,255,255,0.15),0 12px 36px rgba(0,0,0,0.28);box-sizing:border-box;">
+            <section data-ignore-width="true" style="margin:22px 0;border-radius:10px;overflow:hidden;background-color:#262320;border:1px solid rgba(217,119,87,0.3);box-sizing:border-box;">
+              <table style="width:100%;background-color:#1e1b18;border-bottom:1px solid rgba(217,119,87,0.2);border-collapse:collapse;border:none;padding:0;margin:0;">
+                <tbody>
+                  <tr>
+                    <td style="padding:10px 14px;vertical-align:middle;border:none;background-color:#1e1b18;">
+                      ${renderClaudeSparkleSvg('#d97757', 12)}
+                      <span style="font-size:11px;color:#d97757;font-family:Menlo,Monaco,monospace;letter-spacing:1px;font-weight:700;margin-left:6px;vertical-align:middle;">ANTHROPIC CONSOLE</span>
+                    </td>
+                    <td style="padding:10px 14px;text-align:right;vertical-align:middle;border:none;background-color:#1e1b18;">
+                      <span style="font-size:11px;color:#a8a29e;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:600;">${codeLang || 'CODE'}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <pre style="margin:0;padding:16px 18px;overflow-x:auto;background-color:#262320;color:#faf9f5;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.65;letter-spacing:0.3px;white-space:pre-wrap;word-break:break-all;"><code style="background-color:#262320;color:#faf9f5;font-family:inherit;">${codeContent}</code></pre>
+            </section>
+          `);
+        } else if (isMacosGlass) {
+          htmlParts.push(`
+            <section data-ignore-width="true" style="margin:22px 0;border-radius:16px;overflow:hidden;background-color:#16171d;border:1px solid rgba(255,255,255,0.12);box-sizing:border-box;">
               <table style="width:100%;background-color:#202129;border-bottom:1px solid rgba(255,255,255,0.08);border-collapse:collapse;border:none;padding:0;margin:0;">
                 <tbody>
                   <tr>
                     <td style="padding:10px 14px;vertical-align:middle;border:none;background-color:#202129;">
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);margin-right:6px;vertical-align:middle;"></span>
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);margin-right:6px;vertical-align:middle;"></span>
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4);vertical-align:middle;"></span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="45" height="11" viewBox="0 0 45 11" style="display:inline-block;vertical-align:middle;width:45px;height:11px;">
+                        <circle cx="5.5" cy="5.5" r="5" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5" />
+                        <circle cx="20.5" cy="5.5" r="5" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5" />
+                        <circle cx="35.5" cy="5.5" r="4.5" fill="#27c93f" stroke="#1aab29" stroke-width="0.5" />
+                      </svg>
                     </td>
                     <td style="padding:10px 14px;text-align:right;vertical-align:middle;border:none;background-color:#202129;">
-                      <span style="font-size:11px;color:#38bdf8;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;">${codeLang || 'macOS · code'}</span>
+                      <span style="font-size:11px;color:#38bdf8;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:700;letter-spacing:0.5px;">${codeLang || 'TERMINAL'}</span>
                     </td>
                   </tr>
                 </tbody>
@@ -1293,14 +1518,16 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           `);
         } else {
           htmlParts.push(`
-            <section style="margin:20px 0;border-radius:10px;overflow:hidden;background-color:#1e1e1e;box-shadow:0 4px 16px rgba(0,0,0,0.15);box-sizing:border-box;">
+            <section data-ignore-width="true" style="margin:20px 0;border-radius:10px;overflow:hidden;background-color:#1e1e1e;box-sizing:border-box;">
               <table style="width:100%;background-color:#2d2d2d;border-bottom:1px solid #3d3d3d;border-collapse:collapse;border:none;padding:0;margin:0;">
                 <tbody>
                   <tr>
                     <td style="padding:8px 14px;vertical-align:middle;border:none;background-color:#2d2d2d;">
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ff5f56;margin-right:6px;vertical-align:middle;"></span>
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#ffbd2e;margin-right:6px;vertical-align:middle;"></span>
-                      <span style="display:inline-block;width:11px;height:11px;border-radius:50%;background-color:#27c93f;vertical-align:middle;"></span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="45" height="11" viewBox="0 0 45 11" style="display:inline-block;vertical-align:middle;width:45px;height:11px;">
+                        <circle cx="5.5" cy="5.5" r="5" fill="#ff5f56" />
+                        <circle cx="20.5" cy="5.5" r="5" fill="#ffbd2e" />
+                        <circle cx="35.5" cy="5.5" r="4.5" fill="#27c93f" />
+                      </svg>
                     </td>
                     <td style="padding:8px 14px;text-align:right;vertical-align:middle;border:none;background-color:#2d2d2d;">
                       <span style="font-size:11px;color:#9ca3af;font-family:Menlo,Monaco,Consolas,monospace;text-transform:uppercase;font-weight:600;">${codeLang || 'code'}</span>
@@ -1335,6 +1562,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           fontSize,
           lineHeight,
           isMacosGlass,
+          isClaude,
         });
         if (rendered) htmlParts.push(rendered);
         inCustomBlock = false;
@@ -1364,6 +1592,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           fontSize,
           lineHeight,
           isMacosGlass,
+          isClaude,
         });
         if (rendered) htmlParts.push(rendered);
       } else {
@@ -1431,10 +1660,23 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       flushList();
       flushTable();
       const text = trimmed.slice(2);
-      if (isMacosGlass) {
+      if (isClaude) {
         htmlParts.push(`
-          <section style="margin:36px auto 24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
-            <section style="display:inline-block;padding:12px 24px;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border:1px solid rgba(0,113,227,0.16);border-radius:24px;box-shadow:0 6px 20px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+          <section data-ignore-width="true" style="margin:36px auto 24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
+            <section style="display:inline-block;padding:14px 26px;background-color:#faf9f5;border:1px solid rgba(217,119,87,0.25);border-radius:16px;box-sizing:border-box;">
+              <section style="text-align:center;margin-bottom:8px;line-height:1;">
+                ${renderClaudeSparkleSvg('#d97757', 16)}
+              </section>
+              <h1 style="margin:0;font-size:${fontSize + 6}px;font-weight:800;color:#262320;letter-spacing:0.8px;line-height:1.4;font-family:'Newsreader',Georgia,'Songti SC','Source Han Serif SC',serif;">
+                <span style="color:#262320;font-size:${fontSize + 6}px;font-weight:800;font-family:'Newsreader',Georgia,'Songti SC','Source Han Serif SC',serif;">${formatInline(text, primary)}</span>
+              </h1>
+            </section>
+          </section>
+        `);
+      } else if (isMacosGlass) {
+        htmlParts.push(`
+          <section data-ignore-width="true" style="margin:36px auto 24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
+            <section style="display:inline-block;padding:12px 24px;background-color:#f4f8ff;border:1px solid rgba(0,113,227,0.18);border-radius:24px;box-sizing:border-box; -webkit-font-smoothing: antialiased;">
               ${renderMacosTrafficLights('', '#0071e3', 'center')}
               <h1 style="margin:0;font-size:${fontSize + 6}px;font-weight:900;color:#0071e3;letter-spacing:0.5px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
                 <span style="color:#0071e3;font-size:${fontSize + 6}px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
@@ -1444,7 +1686,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
         `);
       } else {
         htmlParts.push(`
-          <section style="margin:28px 0 18px 0;text-align:center;box-sizing:border-box;">
+          <section data-ignore-width="true" style="margin:28px 0 18px 0;text-align:center;box-sizing:border-box;">
             <h1 style="display:inline-block;margin:0;padding:6px 16px;font-size:${fontSize + 6}px;font-weight:900;color:${primary};letter-spacing:1px;line-height:1.4;border-bottom:3px solid ${primary};">
               ${formatInline(text, primary)}
             </h1>
@@ -1454,20 +1696,45 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 6. 二级标题 (H2) - 稳定边框左竖条风格（100% 微信兼容，绝不因 flex 丢失而断行）
+    // 6. 二级标题 (H2) - 稳定微晶卡片风格（外层显式 text-align:left 绝不漂移，内嵌 macOS 专属三色点 SVG）
     if (trimmed.startsWith('## ')) {
       flushList();
       flushTable();
       const text = trimmed.slice(3);
-      if (isMacosGlass) {
+      if (isClaude) {
         htmlParts.push(`
-          <section style="margin:34px 0 18px 0;box-sizing:border-box;">
-            <section style="display:inline-block;padding:8px 16px;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);border-radius:14px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 14px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+          <section data-ignore-width="true" style="margin:34px 0 18px 0;text-align:left;box-sizing:border-box;">
+            <section style="display:inline-block;padding:7px 16px 7px 12px;background-color:#faf9f5;border-radius:10px;border:1px solid rgba(217,119,87,0.25);box-sizing:border-box;">
               <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
                 <tbody>
                   <tr style="border:none;background:transparent !important;">
-                    <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:12px;">
-                      <span style="display:block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 8px rgba(0,113,227,0.5);"></span>
+                    <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:16px;">
+                      ${renderClaudeSparkleSvg('#d97757', 14)}
+                    </td>
+                    <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
+                      <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:700;color:#262320;letter-spacing:0.5px;line-height:1.4;font-family:'Newsreader',Georgia,'Songti SC','Source Han Serif SC',serif;">
+                        ${formatInline(text, primary)}
+                      </h2>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          </section>
+        `);
+      } else if (isMacosGlass) {
+        htmlParts.push(`
+          <section data-ignore-width="true" style="margin:34px 0 18px 0;text-align:left;box-sizing:border-box;">
+            <section style="display:inline-block;padding:7px 16px 7px 12px;background-color:#f4f8ff;border-radius:14px;border:1px solid rgba(0,113,227,0.2);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+              <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
+                <tbody>
+                  <tr style="border:none;background:transparent !important;">
+                    <td style="border:none;padding:0 10px 0 0;vertical-align:middle;line-height:1;width:28px;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="8" viewBox="0 0 28 8" style="display:block;width:28px;height:8px;">
+                        <circle cx="4" cy="4" r="3.5" fill="#ff5f56" />
+                        <circle cx="14" cy="4" r="3.5" fill="#ffbd2e" />
+                        <circle cx="24" cy="4" r="3.5" fill="#27c93f" />
+                      </svg>
                     </td>
                     <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
                       <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
@@ -1482,7 +1749,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
         `);
       } else {
         htmlParts.push(`
-          <section style="margin:30px 0 16px 0;border-left:5px solid ${primary};padding-left:12px;box-sizing:border-box;">
+          <section style="margin:30px 0 16px 0;border-left:5px solid ${primary};padding-left:12px;box-sizing:border-box;text-align:left;">
             <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:${textColor};letter-spacing:0.5px;line-height:1.35;">
               ${formatInline(text, primary)}
             </h2>
@@ -1492,19 +1759,40 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 7. 三级标题 (H3)
+    // 7. 三级标题 (H3) - 矢量 SVG 小圆点保护与防漂移
     if (trimmed.startsWith('### ')) {
       flushList();
       flushTable();
       const text = trimmed.slice(4);
-      if (isMacosGlass) {
+      if (isClaude) {
         htmlParts.push(`
-          <section style="margin:24px 0 12px 0;box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box;">
             <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
               <tbody>
                 <tr style="border:none;background:transparent !important;">
-                  <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:10px;">
-                    <span style="display:block;width:6px;height:6px;border-radius:50%;background-color:#38bdf8;box-shadow:0 0 6px rgba(56,189,248,0.6);"></span>
+                  <td style="border:none;padding:0 6px 0 0;vertical-align:middle;line-height:1;width:12px;">
+                    ${renderClaudeSparkleSvg('#d97757', 11)}
+                  </td>
+                  <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
+                    <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#d97757;line-height:1.4;font-family:'Newsreader',Georgia,serif;">
+                      ${formatInline(text, primary)}
+                    </h3>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        `);
+      } else if (isMacosGlass) {
+        htmlParts.push(`
+          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+            <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
+              <tbody>
+                <tr style="border:none;background:transparent !important;">
+                  <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" style="display:block;width:8px;height:8px;">
+                      <circle cx="4" cy="4" r="3.5" fill="#0071e3" />
+                    </svg>
                   </td>
                   <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
                     <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
@@ -1518,7 +1806,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
         `);
       } else {
         htmlParts.push(`
-          <section style="margin:22px 0 10px 0;box-sizing:border-box;">
+          <section data-ignore-width="true" style="margin:22px 0 10px 0;text-align:left;box-sizing:border-box;">
             <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:${primary};line-height:1.4;">
               ${formatInline(text, primary)}
             </h3>
@@ -1528,14 +1816,23 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 8. 引用块 (Blockquote) - 优雅质感卡片
+    // 8. 引用块 (Blockquote) - 优雅纯色质感卡片（微信规范 #4.1.2 避免渐变与 #1.4 忽略宽度）
     if (trimmed.startsWith('>')) {
       flushList();
       flushTable();
       const text = trimmed.replace(/^>\s?/, '');
-      if (isMacosGlass) {
+      if (isClaude) {
         htmlParts.push(`
-          <section style="margin:22px 0;padding:16px 20px;background-color:#f4f8ff;background-image:linear-gradient(145deg,#ffffff 0%,#f0f6ff 100%);border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
+          <section data-ignore-width="true" style="margin:24px 0;padding:18px 22px;background-color:#faf9f5;border-radius:10px;border:1px solid rgba(217,119,87,0.22);border-left:4px solid #d97757;box-sizing:border-box;">
+            ${renderClaudeCardHeader('CLAUDE INSIGHT', '#d97757')}
+            <p style="margin:0;font-size:${fontSize}px;line-height:${lineHeight};color:#262320;letter-spacing:0.5px;text-align:justify;word-break:break-all;font-family:'Newsreader',Georgia,'Songti SC',serif;">
+              <span style="color:#262320;font-size:${fontSize}px;line-height:${lineHeight};font-family:'Newsreader',Georgia,'Songti SC',serif;">${formatInline(text, primary)}</span>
+            </p>
+          </section>
+        `);
+      } else if (isMacosGlass) {
+        htmlParts.push(`
+          <section data-ignore-width="true" style="margin:22px 0;padding:16px 20px;background-color:#f4f8ff;border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
             ${renderMacosTrafficLights('INSIGHT', '#0071e3')}
             <p style="margin:0;font-size:${fontSize}px;line-height:${lineHeight};color:#1d1d1f;font-weight:400;letter-spacing:0.5px;text-align:justify;word-break:break-all;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif;">
               <span style="color:#1d1d1f;font-size:${fontSize}px;line-height:${lineHeight};font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
@@ -1544,7 +1841,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
         `);
       } else {
         htmlParts.push(`
-          <section style="margin:18px 0;padding:14px 18px;background-color:${secondary};border-left:4px solid ${primary};border-radius:0 8px 8px 0;color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};box-sizing:border-box;">
+          <section data-ignore-width="true" style="margin:18px 0;padding:14px 18px;background-color:${secondary};border-left:4px solid ${primary};border-radius:0 8px 8px 0;color:${textColor};font-size:${fontSize}px;line-height:${lineHeight};box-sizing:border-box;">
             <p style="margin:0;opacity:0.95;"><span style="color:${textColor};font-size:${fontSize}px;">${formatInline(text, primary)}</span></p>
           </section>
         `);
@@ -1552,24 +1849,41 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 9. 分割线（采用 inline-block 居中三段式，微信端 100% 居中永不折行）
+    // 9. 分割线（采用专业内联 SVG 矢量风格线，100% 免疫微信空标签过滤，居中永不折行）
     if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
       flushList();
       flushTable();
-      if (isMacosGlass) {
+      if (isClaude) {
         htmlParts.push(`
-          <section style="margin:32px auto;text-align:center;box-sizing:border-box;">
-            <span style="display:inline-block;width:40px;height:1px;background-color:rgba(0,113,227,0.25);vertical-align:middle;"></span>
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#0071e3;box-shadow:0 0 10px rgba(0,113,227,0.5);vertical-align:middle;margin:0 10px;"></span>
-            <span style="display:inline-block;width:40px;height:1px;background-color:rgba(0,113,227,0.25);vertical-align:middle;"></span>
+          <section data-ignore-width="true" style="margin:34px 0;text-align:center;line-height:0;box-sizing:border-box;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="16" viewBox="0 0 280 16" preserveAspectRatio="xMidYMid meet" style="max-width:240px;display:inline-block;vertical-align:middle;">
+              <line x1="15" y1="8" x2="115" y2="8" stroke="#d97757" stroke-width="1" stroke-opacity="0.35" stroke-linecap="round" />
+              <path d="M140 1C140.3 5.5 143.5 8.7 148 9C143.5 9.3 140.3 12.5 140 17C139.7 12.5 136.5 9.3 132 9C136.5 8.7 139.7 5.5 140 1Z" fill="#d97757" transform="translate(0, -1)" />
+              <circle cx="140" cy="8" r="1.8" fill="#faf9f5" />
+              <line x1="165" y1="8" x2="265" y2="8" stroke="#d97757" stroke-width="1" stroke-opacity="0.35" stroke-linecap="round" />
+            </svg>
+          </section>
+        `);
+      } else if (isMacosGlass) {
+        htmlParts.push(`
+          <section data-ignore-width="true" style="margin:34px 0;text-align:center;line-height:0;box-sizing:border-box;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="14" viewBox="0 0 320 14" preserveAspectRatio="xMidYMid meet" style="max-width:260px;display:inline-block;vertical-align:middle;">
+              <line x1="15" y1="7" x2="120" y2="7" stroke="#0071e3" stroke-width="1" stroke-opacity="0.25" stroke-linecap="round" />
+              <circle cx="140" cy="7" r="4" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5" />
+              <circle cx="160" cy="7" r="4" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5" />
+              <circle cx="180" cy="7" r="4" fill="#27c93f" stroke="#1aab29" stroke-width="0.5" />
+              <line x1="200" y1="7" x2="305" y2="7" stroke="#0071e3" stroke-width="1" stroke-opacity="0.25" stroke-linecap="round" />
+            </svg>
           </section>
         `);
       } else {
         htmlParts.push(`
-          <section style="margin:28px auto;text-align:center;box-sizing:border-box;">
-            <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
-            <span style="display:inline-block;width:6px;height:6px;background-color:${primary};border-radius:50%;vertical-align:middle;margin:0 8px;"></span>
-            <span style="display:inline-block;width:35px;height:1px;background-color:#cbd5e1;vertical-align:middle;"></span>
+          <section data-ignore-width="true" style="margin:30px 0;text-align:center;line-height:0;box-sizing:border-box;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="12" viewBox="0 0 240 12" preserveAspectRatio="xMidYMid meet" style="max-width:200px;display:inline-block;vertical-align:middle;">
+              <line x1="10" y1="6" x2="105" y2="6" stroke="${primary}" stroke-width="1" stroke-opacity="0.3" stroke-linecap="round" />
+              <circle cx="120" cy="6" r="3.5" fill="${primary}" />
+              <line x1="135" y1="6" x2="230" y2="6" stroke="${primary}" stroke-width="1" stroke-opacity="0.3" stroke-linecap="round" />
+            </svg>
           </section>
         `);
       }
@@ -1599,9 +1913,16 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       const imgType = detectImgDataType(src);
 
       if (src) {
-        if (isMacosGlass) {
+        if (isClaude) {
           htmlParts.push(`
-            <section style="margin:24px auto;text-align:center;box-sizing:border-box;max-width:100%;background-color:#f4f8ff;background-image:linear-gradient(135deg,#ffffff 0%,#f0f6ff 100%);padding:10px 10px 14px 10px;border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06); -webkit-font-smoothing: antialiased;">
+            <section data-ignore-width="true" style="margin:24px auto;text-align:center;box-sizing:border-box;width:100% !important;max-width:100% !important;background-color:#faf9f5;padding:10px 10px 14px 10px;border-radius:12px;border:1px solid rgba(217,119,87,0.22);">
+              <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="${imgType}" referrerpolicy="no-referrer" style="display:block;width:100% !important;max-width:100% !important;height:auto !important;border-radius:8px;margin:0 auto;box-sizing:border-box;" />
+              ${alt ? `<section style="margin-top:10px;text-align:center;"><span style="color:#6b635b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.4px;line-height:1.5;font-family:'Newsreader',Georgia,serif;">${escapeHtml(alt)}</span></section>` : ''}
+            </section>
+          `);
+        } else if (isMacosGlass) {
+          htmlParts.push(`
+            <section data-ignore-width="true" style="margin:24px auto;text-align:center;box-sizing:border-box;width:100% !important;max-width:100% !important;background-color:#f4f8ff;padding:10px 10px 14px 10px;border-radius:16px;border:1px solid rgba(0,113,227,0.16);box-shadow:0 4px 16px rgba(0,113,227,0.06); -webkit-font-smoothing: antialiased;">
               ${renderMacosTrafficLights('', '#0071e3')}
               <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="${imgType}" referrerpolicy="no-referrer" style="display:block;width:100% !important;max-width:100% !important;height:auto !important;border-radius:10px;margin:0 auto;box-sizing:border-box;" />
               ${alt ? `<section style="margin-top:10px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;">${escapeHtml(alt)}</span></section>` : ''}
@@ -1609,7 +1930,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
           `);
         } else {
           htmlParts.push(`
-            <section style="margin:24px auto;text-align:center;box-sizing:border-box;max-width:100%;">
+            <section data-ignore-width="true" style="margin:24px auto;text-align:center;box-sizing:border-box;width:100% !important;max-width:100% !important;">
               <img src="${src}" data-src="${src}" alt="${escapeHtml(alt)}" data-type="${imgType}" referrerpolicy="no-referrer" style="display:block;max-width:100% !important;height:auto !important;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin:0 auto;box-sizing:border-box;" />
               ${alt ? `<section style="margin-top:8px;text-align:center;"><span style="color:#64748b;font-size:${fontSize - 3}px;display:inline-block;letter-spacing:0.3px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;">${escapeHtml(alt)}</span></section>` : ''}
             </section>
@@ -1636,6 +1957,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       fontSize,
       lineHeight,
       isMacosGlass,
+      isClaude,
     });
     if (rendered) htmlParts.push(rendered);
   }
@@ -1643,14 +1965,15 @@ export function formatToWechatHtml(markdown = '', options = {}) {
   flushList();
   flushTable();
 
-  // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，背景纯白保持微信文章自然流转，内部组件呈现液态玻璃卡片质感)
-  const containerStyle = isMacosGlass
-    ? `max-width:677px;margin:0 auto;padding:18px 12px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`
-    : `max-width:677px;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`;
-
+  // 组装总微信容器 (微信富文本一等公民：使用 section 替代 div，注入 data-ignore-width="true"，背景纯白保持微信文章自然流转，内部组件呈现液态玻璃卡片质感)
+  const containerStyle = isClaude
+    ? `width:100% !important;max-width:100% !important;margin:0 auto;padding:18px 12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;line-height:1.85;letter-spacing:0.6px;`
+    : isMacosGlass
+    ? `width:100% !important;max-width:100% !important;margin:0 auto;padding:18px 12px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:${fontSize}px;color:${textColor};background-color:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`
+    : `width:100% !important;max-width:100% !important;margin:0 auto;padding:16px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:${fontSize}px;color:${textColor};background:#ffffff;box-sizing:border-box;-webkit-font-smoothing:antialiased;`;
 
   return `
-    <section class="wechat-format-container" style="${containerStyle}">
+    <section class="wechat-format-container" data-ignore-width="true" style="${containerStyle}">
       ${htmlParts.join('\n')}
     </section>
   `.trim();

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { chat, chatStream, extractJson, resolveApiKey, resolveModel, resolveBaseUrl, testConnection } from './lib/deepseek.mjs';
 import { titleSystemPrompt, anglesSystemPrompt, articleSystemPrompt, layoutSystemPrompt } from './lib/prompts.mjs';
+import { getAggregatedTrends, deconstructTrend } from './lib/trends.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -146,7 +147,10 @@ async function apiTitles(req, res, body) {
 
   const messages = [
     { role: 'system', content: titleSystemPrompt() },
-    { role: 'user', content: `主题/内容：${topic}\n\n生成 ${count} 个候选标题（至少覆盖 6 种方法），严格按要求的 JSON 结构输出。` },
+    {
+      role: 'user',
+      content: `【待拟定爆款标题的主题/素材】：\n${topic}\n\n【关键创作指令】：\n1. 严格执行【第一法则：实体解构与主语脱水】：先在内心将输入解构为 1~2 个口语化强实体与受众敏感点，绝对严禁直接把长预告名、长书名号原样照搬为主语！\n2. 严格执行【第二法则：彻底封杀八股文套话】：绝不得出现“深度全景复盘与核心要点”、“彻底搞懂...看这一篇就够了”、“为什么说...正在悄悄改变行业格局”等低级 AI 模板词！\n3. 围绕 6 大吸睛流派生成 ${count} 个极具点击欲、圈层共鸣与反差好奇的公众号 10w+ 级优质候选标题，严格按要求的合法 JSON 格式输出。`
+    },
   ];
 
   try {
@@ -177,6 +181,35 @@ async function apiTitles(req, res, body) {
   }
 }
 
+// 智能脱水提取核心实体，避免把长预告长书名整句当主语
+function extractCoreSubject(rawTopic) {
+  if (!rawTopic) return '热门话题';
+  let t = rawTopic.trim();
+  const bookMatch = t.match(/《([^》]+)》/);
+  const quoteMatch = t.match(/[「“]([^」”]+)[」”]/);
+
+  // 针对类似 《原神》角色预告-「沃雅妮莎：此夜共沦」
+  if (bookMatch && quoteMatch) {
+    const book = bookMatch[1].trim();
+    const character = quoteMatch[1].split(/[:：]/)[0].trim();
+    return `${book}新角色${character}`;
+  }
+  if (quoteMatch) {
+    return quoteMatch[1].split(/[:：]/)[0].trim();
+  }
+  if (bookMatch) {
+    return bookMatch[1].trim();
+  }
+
+  // 过滤多余标点和格式字眼
+  t = t.replace(/[《》【】\[\]（）()]/g, '')
+       .replace(/角色预告|官方预告|深度报告|新闻联播|重磅发布/g, '')
+       .replace(/[-——_:：]/g, ' ')
+       .trim();
+
+  return t.slice(0, 16) || '当下热门议题';
+}
+
 // 智能从非标准/损坏的 JSON 文本中精准提取标题候选矩阵
 function fallbackParseTitles(rawText, topic) {
   const text = (rawText || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -199,7 +232,7 @@ function fallbackParseTitles(rawText, topic) {
         title,
         method: methodMatch?.[1]?.trim() || '智能精选',
         hook: hookMatch?.[1]?.trim() || '爆款吸引力',
-        score: scoreMatch ? Number(scoreMatch[1]) : Math.floor(86 + Math.random() * 10),
+        score: scoreMatch ? Number(scoreMatch[1]) : Math.floor(88 + Math.random() * 8),
         risk: riskMatch?.[1]?.trim() || '低',
         riskNote: '',
       });
@@ -217,7 +250,7 @@ function fallbackParseTitles(rawText, topic) {
           title,
           method: '智能精选',
           hook: '爆款吸引力',
-          score: Math.floor(86 + Math.random() * 10),
+          score: Math.floor(88 + Math.random() * 8),
           risk: '低',
           riskNote: '',
         });
@@ -233,7 +266,6 @@ function fallbackParseTitles(rawText, topic) {
       .filter((l) => l && !l.startsWith('```'));
 
     for (const line of lines) {
-      // 严格跳过所有 JSON 语法和字段关键字行！
       if (/^[{\[\]}]|^(?:"?candidates"?|"?title"?|"?method"?|"?hook"?|"?score"?|"?risk"?|"?riskNote"?|"?brief"?|"?top5"?|"?ab"?|"?role"?|"?group"?|"?reason"?|"?hypothesis"?|"?items"?)\s*[:\s\[{]/i.test(line)) {
         continue;
       }
@@ -245,9 +277,9 @@ function fallbackParseTitles(rawText, topic) {
       if (cleaned.length >= 6 && cleaned.length <= 50) {
         candidates.push({
           title: cleaned,
-          method: '智能精选',
-          hook: '爆款吸引力',
-          score: Math.floor(86 + Math.random() * 10),
+          method: '圈层精选',
+          hook: '引发受众情绪共鸣',
+          score: Math.floor(88 + Math.random() * 8),
           risk: '低',
           riskNote: '',
         });
@@ -255,20 +287,67 @@ function fallbackParseTitles(rawText, topic) {
     }
   }
 
+  // 终极动态容错：使用先进 6 大流派生成动态爆款候选（拒绝死板套话）
+  const subject = extractCoreSubject(topic);
   const list = candidates.length > 0 ? candidates.slice(0, 12) : [
-    { title: `${topic}：深度全景复盘与核心要点`, method: '深度解读', hook: '干货全景', score: 93, risk: '低' },
-    { title: `彻底搞懂${topic}！看这一篇就够了`, method: '行动指南', hook: '一站搞定', score: 91, risk: '低' },
-    { title: `为什么说${topic}正在悄悄改变行业格局？`, method: '趋势剖析', hook: '认知升级', score: 89, risk: '低' },
+    {
+      title: `看似反差，实则破局？关于${subject}的真实底牌与争议`,
+      method: '反差与打破认知流',
+      hook: '制造人设与预期的强烈反转',
+      score: 95,
+      risk: '低',
+      riskNote: ''
+    },
+    {
+      title: `被唱衰了这么久，${subject}终于掏出了这张“压箱底王牌”`,
+      method: '情绪嘴替与共鸣流',
+      hook: '圈层情绪压抑后的扬眉吐气',
+      score: 93,
+      risk: '低',
+      riskNote: ''
+    },
+    {
+      title: `哪怕不感兴趣，也强烈建议看完：${subject}的审美又超前了`,
+      method: '审美与降维打击流',
+      hook: '极致评价制造不容置疑的好奇心',
+      score: 92,
+      risk: '低',
+      riskNote: ''
+    },
+    {
+      title: `这次全新动作，把受众的钱包与预期全拿捏了！深入拆解${subject}`,
+      method: '大白话读者代入流',
+      hook: '替读者脱口而出的真实心声',
+      score: 90,
+      risk: '低',
+      riskNote: ''
+    },
+    {
+      title: `别盲目跟风！关于${subject}背后隐藏的底层逻辑，90%的人都看漏了`,
+      method: '利益警示与深层真相流',
+      hook: '打破信息差与损失厌恶',
+      score: 89,
+      risk: '低',
+      riskNote: ''
+    },
+    {
+      title: `深度思考：关于${subject}，为什么很多人从一开始就想错了？`,
+      method: '悬念与反直觉流',
+      hook: '挑衅常识，激发探究欲望',
+      score: 88,
+      risk: '低',
+      riskNote: ''
+    }
   ];
 
   const top5 = list.slice(0, 5).map((c, i) => ({
-    role: ['综合首选', '稳健版', '传播版', '搜索版', '实验版'][i] || '精选推荐',
+    role: ['综合首选', '传播爆款', '圈层共鸣', '审美格调', '搜索长尾'][i] || '精选推荐',
     title: c.title,
-    reason: '高度契合主题与公众号读者点击偏好',
+    reason: `精准契合【${c.method}】核心动机，主语自然脱水，有效激发点击欲`,
   }));
 
   return {
-    brief: `核心主题：${topic}；目标读者：公众号关注者；核心价值：深度干货与行业洞察`,
+    brief: `核心主体：${subject}；目标受众：圈层受众与公众号高粘性读者；情绪引爆点：反差反转与审美共振`,
     candidates: list,
     top5,
   };
@@ -380,12 +459,21 @@ async function apiArticle(req, res, body) {
   const words = Math.min(4000, Math.max(300, Number(body.words) || (mode === 'short' ? 800 : 2000)));
   const extra = String(body.extra || '').trim();
 
-  const userParts = [`主题：${topic}`, `目标字数：约 ${words} 字`];
-  if (title) userParts.push(`文章标题：${title}`);
-  if (mode === 'long' && route === 'breakthrough' && angle) userParts.push(`已选角度：${angle}`);
-  if (mode === 'short') userParts.push('文体：公众号短文（≤1000 字，纯文字）');
-  if (extra) userParts.push(`补充说明/素材：${extra}`);
-  userParts.push('请直接输出成稿。');
+  const userParts = [
+    `【文章核心主题与素材】：\n${topic}`,
+    `【目标正文字数】：约 ${words} 字`,
+  ];
+  if (title) userParts.push(`【拟定爆款文章标题】：\n${title}`);
+  if (mode === 'long' && route === 'breakthrough' && angle) userParts.push(`【选定核心切入视角】：\n${angle}`);
+  if (mode === 'short') userParts.push('【文体形式】：微信公众号精品短文（纯文字、极短段落推进、直戳心窝）');
+  if (extra) userParts.push(`【补充深度素材/读者画像】：\n${extra}`);
+  userParts.push(`【执行指令】：
+请严格遵循【情绪心流四幕法】：
+- 第一幕：从高颗粒度的具体现场或戏剧冲突开篇，开篇第一行直接以 :::lead 启动，严禁假大空的铺垫套话；
+- 第二幕：撕开表象，揭开读者深层的认知盲区与痛点；
+- 第三幕：层层剥茧硬核交付，观点鲜明，单段严控在 2~4 行以内（60~90字），多用短句并合理穿插 :::lead, :::goldquote, :::tip, :::warning, :::card 等排版组件；
+- 第四幕：高密度金句收拢情绪，文末提出具体的交流话题，引导读者在评论区互动。
+严禁出现任何“综上所述/笔者认为/不难发现/本质上”等 AI 塑料词汇，请直接输出成稿正文：`);
 
   const messages = [
     { role: 'system', content: articleSystemPrompt({ mode, route }) },
@@ -690,6 +778,45 @@ async function apiUpload(req, res, body) {
   }
 }
 
+// ---------------- API：全网实时爆款热点聚合 ----------------
+async function apiTrends(req, res, url) {
+  const source = url.searchParams.get('source') || 'all';
+  const category = url.searchParams.get('category') || 'all';
+  const refresh = url.searchParams.get('refresh') === 'true';
+
+  try {
+    const list = await getAggregatedTrends({ source, category, refresh });
+    sendJson(res, 200, { ok: true, list, source, category, count: list.length });
+  } catch (err) {
+    sendJson(res, 500, { ok: false, error: err.message, list: [] });
+  }
+}
+
+// ---------------- API：爆款逆向工程切入角拆解 ----------------
+async function apiDeconstructTrend(req, res, body) {
+  const trend = body.trend;
+  if (!trend || !trend.title) {
+    return sendJson(res, 400, { error: '请提供待拆解的热点标题' });
+  }
+
+  const { key, model, baseUrl } = resolveReqConfig(req, body);
+  if (!key) {
+    return sendJson(res, 401, { error: '缺少 API Key：请在右上角设置中输入或配置环境变量' });
+  }
+
+  try {
+    const result = await deconstructTrend({
+      trend,
+      apiKey: key,
+      model,
+      baseUrl,
+    });
+    sendJson(res, 200, { ok: true, result });
+  } catch (err) {
+    sendJson(res, 500, { ok: false, error: `拆解失败: ${err.message}` });
+  }
+}
+
 // ---------------- 路由 ----------------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -697,6 +824,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') {
       if (url.pathname === '/api/health') return sendJson(res, 200, { ok: true, port: config.port, model: config.model, baseUrl: config.baseUrl });
       if (url.pathname === '/api/images/search') return await apiSearchImages(req, res, url);
+      if (url.pathname === '/api/trends') return await apiTrends(req, res, url);
       return serveStatic(req, res);
     }
     if (req.method === 'POST' && url.pathname === '/api/upload') return await apiUpload(req, res, await readBody(req));
@@ -705,6 +833,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/angles') return await apiAngles(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/article') return await apiArticle(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/layout') return await apiLayout(req, res, await readBody(req));
+    if (req.method === 'POST' && url.pathname === '/api/trends/deconstruct') return await apiDeconstructTrend(req, res, await readBody(req));
     return sendJson(res, 404, { error: 'not found' });
   } catch (e) {
     if (!res.headersSent) return sendJson(res, 500, { error: e.message });
