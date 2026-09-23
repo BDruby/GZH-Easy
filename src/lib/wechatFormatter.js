@@ -262,18 +262,24 @@ function renderClaudeCardHeader(label, color = '#d97757') {
 
 /**
  * 智能预处理微信 HTML 中的图片：
- * 1. 本地图片 (/uploads/、blob:、localhost 等) 自动在前端抓取并转化为 Base64 Data URL，彻底解决公众号后台无法下载本地图片导致裂图的问题
- * 2. 外部图片强制去掉 auto=format 转为 fm=jpg，规避微信后台对 WebP/AVIF 的格式拦截
- * 3. 智能检测并填充 data-type（严格匹配 jpeg/png/gif）与 referrerpolicy="no-referrer"，解决防盗链与格式冲突
+/**
+ * 智能预处理微信 HTML 中的图片：
+ * 1. 微信公众号核心铁律：绝对不可在公众号复制内容中使用 Base64 Data URL！微信后台 catchremoteimage 必报“来源信息无法识别，系统错误，重试”！
+ * 2. 本地图片 (/uploads/ 等) 自动补齐当前站点的绝对 HTTP/HTTPS 公网地址，让腾讯微信爬虫服务器能正常抓取并转存到微信 CDN (mmbiz.qpic.cn)
+ * 3. 如有行内临时 Base64/blob 图片，自动调用 /api/upload 转存为持久公网图片，彻底杜绝失效
+ * 4. 外部图片强制去掉 auto=format 转为 fm=jpg，规避微信后台对 WebP/AVIF 的格式拦截
+ * 5. 智能检测并填充 data-type（严格匹配 jpeg/png/gif）与 referrerpolicy="no-referrer"，解决防盗链与格式冲突
  */
-export async function prepareWechatImages(html) {
+export async function prepareWechatImages(html, options = {}) {
   if (!html) return '';
+  const { forExport = false } = options;
 
   const imgRegex = /<img\b([^>]*?)>/gi;
   const matches = [...html.matchAll(imgRegex)];
   if (matches.length === 0) return html;
 
   let resultHtml = html;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   for (const match of matches) {
     const fullTag = match[0];
@@ -283,45 +289,77 @@ export async function prepareWechatImages(html) {
     if (!srcMatch) continue;
 
     let src = srcMatch[1];
-    const isLocal =
-      src.startsWith('/uploads/') ||
-      src.startsWith('/api/') ||
-      /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(src) ||
-      src.startsWith('blob:');
 
-    if (isLocal) {
-      try {
-        const response = await fetch(src);
-        if (response.ok) {
-          const blob = await response.blob();
-          const base64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          if (base64 && base64.startsWith('data:image/')) {
-            src = base64;
+    if (forExport) {
+      // 单文件离线导出归档：嵌入 Base64 保证单文件可离线查看
+      const isLocal =
+        src.startsWith('/uploads/') ||
+        src.startsWith('/api/') ||
+        /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(src) ||
+        src.startsWith('blob:');
+
+      if (isLocal) {
+        try {
+          const response = await fetch(src);
+          if (response.ok) {
+            const blob = await response.blob();
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            if (base64 && base64.startsWith('data:image/')) {
+              src = base64;
+            }
           }
+        } catch (e) {
+          console.warn('Failed to convert local image to Base64 for export:', src, e);
         }
-      } catch (e) {
-        console.warn('Failed to convert local image to Base64:', src, e);
       }
     } else {
-      src = cleanImageUrl(src);
+      // 微信公众号复制模式：必须是合法 HTTP/HTTPS 链接，坚决杜绝 Base64
+      // 1. 如果已是 Base64 或 blob:（例如用户未上传直接粘贴在文章里的内容），自动转存为服务器公网文件
+      if ((src.startsWith('data:image/') || src.startsWith('blob:')) && typeof window !== 'undefined') {
+        try {
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: src, filename: 'wechat_pasted_img.png' }),
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            if (uploadData.ok && uploadData.url) {
+              src = uploadData.url.startsWith('/') && origin ? `${origin}${uploadData.url}` : uploadData.url;
+            }
+          }
+        } catch (e) {
+          console.warn('Auto upload of Base64 image failed:', e);
+        }
+      }
+
+      // 2. 如果是相对路径（如 /uploads/paste_xxx.png），自动转换为当前服务器的绝对公网 URL
+      if (src.startsWith('/') && origin) {
+        src = `${origin}${src}`;
+      }
     }
+
+    // 3. 规范化外链（例如强制 Unsplash 转 fm=jpg）
+    src = cleanImageUrl(src);
 
     const dataType = detectImgDataType(src);
 
     let newAttrs = attrs
+      .replace(/\/+$/, '')
       .replace(/\bsrc=["'][^"']+["']/i, `src="${src}"`)
       .replace(/\bdata-src=["'][^"']*["']/i, '')
       .replace(/\bdata-type=["'][^"']*["']/i, '')
-      .replace(/\breferrerpolicy=["'][^"']*["']/i, '');
+      .replace(/\breferrerpolicy=["'][^"']*["']/i, '')
+      .trim();
 
     newAttrs += ` data-src="${src}" data-type="${dataType}" referrerpolicy="no-referrer"`;
 
-    resultHtml = resultHtml.replace(fullTag, `<img ${newAttrs.trim()}>`);
+    resultHtml = resultHtml.replace(fullTag, `<img ${newAttrs.trim()} />`);
   }
 
   return resultHtml;

@@ -59,7 +59,9 @@ function serveStatic(req, res) {
     if (fs.existsSync(uploadFile) && fs.statSync(uploadFile).isFile()) {
       res.writeHead(200, {
         'Content-Type': MIME[path.extname(uploadFile)] || 'application/octet-stream',
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       });
       return fs.createReadStream(uploadFile).pipe(res);
     }
@@ -636,6 +638,19 @@ async function apiSearchImages(req, res, url) {
   sendJson(res, 200, { ok: true, results, count: results.length });
 }
 
+// 动态解析当前服务器的公网访问根地址（支持反代头与自定义域名配置）
+function getPublicBaseUrl(req) {
+  if (config.publicBaseUrl) {
+    return config.publicBaseUrl.replace(/\/+$/, '');
+  }
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
+  if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+    return `${proto}://${host}`;
+  }
+  return '';
+}
+
 // ---------------- API：图片智能暂存与免防盗链公网转存 ----------------
 async function apiUpload(req, res, body) {
   const data = body.data;
@@ -678,96 +693,13 @@ async function apiUpload(req, res, body) {
     fs.writeFileSync(localFilePath, buffer);
 
     const localUrl = `/uploads/${localFileName}`;
-
-    // 2. 推送至公网免防盗链图床通道（微信后台一键转存必备）
-    let publicUrl = '';
-    
-    // 通道 1：Litterbox (72h 临时公网直链)
-    try {
-      const form = new FormData();
-      form.append('reqtype', 'fileupload');
-      form.append('time', '72h');
-      form.append('fileToUpload', new Blob([buffer], { type: mimeType }), localFileName);
-
-      const uploadRes = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-        method: 'POST',
-        body: form,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-        },
-        signal: AbortSignal.timeout(8000)
-      });
-
-      if (uploadRes.ok) {
-        const text = (await uploadRes.text()).trim();
-        if (text.startsWith('http://') || text.startsWith('https://')) {
-          publicUrl = text;
-        }
-      }
-    } catch (err) {
-      console.warn('[upload] 通道1 (Litterbox) 异常，尝试通道2...', err.message);
-    }
-
-    // 通道 2：Catbox 永久免费图床
-    if (!publicUrl) {
-      try {
-        const form2 = new FormData();
-        form2.append('reqtype', 'fileupload');
-        form2.append('fileToUpload', new Blob([buffer], { type: mimeType }), localFileName);
-
-        const uploadRes2 = await fetch('https://catbox.moe/user/api.php', {
-          method: 'POST',
-          body: form2,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-          },
-          signal: AbortSignal.timeout(8000)
-        });
-
-        if (uploadRes2.ok) {
-          const text = (await uploadRes2.text()).trim();
-          if (text.startsWith('http://') || text.startsWith('https://')) {
-            publicUrl = text;
-          }
-        }
-      } catch (err) {
-        console.warn('[upload] 通道2 (Catbox) 异常，尝试通道3...', err.message);
-      }
-    }
-
-    // 通道 3：0x0.st 极速图床
-    if (!publicUrl) {
-      try {
-        const form3 = new FormData();
-        form3.append('file', new Blob([buffer], { type: mimeType }), localFileName);
-
-        const uploadRes3 = await fetch('https://0x0.st', {
-          method: 'POST',
-          body: form3,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-          },
-          signal: AbortSignal.timeout(6000)
-        });
-
-        if (uploadRes3.ok) {
-          const text = (await uploadRes3.text()).trim();
-          if (text.startsWith('http://') || text.startsWith('https://')) {
-            publicUrl = text;
-          }
-        }
-      } catch (err) {
-        console.warn('[upload] 通道3 (0x0.st) 异常，降级使用本地暂存直链:', err.message);
-      }
-    }
-
-    // 优先公网直链（确保微信后台粘贴自动转存），降级使用本地相对直链
-    const finalUrl = publicUrl || localUrl;
+    const publicBase = getPublicBaseUrl(req);
+    const finalUrl = publicBase ? `${publicBase}${localUrl}` : localUrl;
 
     sendJson(res, 200, {
       ok: true,
       url: finalUrl,
-      publicUrl: publicUrl || null,
+      publicUrl: publicBase ? finalUrl : null,
       localUrl,
       filename: body.filename || localFileName,
       size: buffer.length,

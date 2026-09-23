@@ -583,12 +583,13 @@ export function WechatVisualEditor({
     if (!wechatHtml) return onShowToast?.('暂无可复制的内容');
 
     // 智能图像与格式安全巡检：
-    // 1. 本地图片 (/uploads/ 等) 自动抓取并转为 Base64 Data URL，彻底解决微信后台无法下载本地图片导致裂图的问题
-    // 2. 外部图片自动转为 fm=jpg，避免微信后台拦截 WebP/AVIF
-    // 3. 动态识别正确的 data-type (jpeg/png/gif) 与注入 referrerpolicy="no-referrer"
+    // 1. 本地图片 (/uploads/ 等) 自动补齐为当前站点的绝对 HTTP/HTTPS 公网地址，让腾讯微信爬虫服务器能正常抓取并转存到微信 CDN (mmbiz.qpic.cn)
+    // 2. 严禁 Base64 图片复制到微信！若检测到 Base64 自动静默转存为持久公网图片
+    // 3. 外部图片自动转为 fm=jpg，避免微信后台拦截 WebP/AVIF
+    // 4. 动态识别正确的 data-type (jpeg/png/gif) 与注入 referrerpolicy="no-referrer"
     let processedHtml = wechatHtml;
     try {
-      processedHtml = await prepareWechatImages(wechatHtml);
+      processedHtml = await prepareWechatImages(wechatHtml, { forExport: false });
     } catch (e) {
       console.warn('prepareWechatImages error, using fallback:', e);
     }
@@ -659,7 +660,13 @@ export function WechatVisualEditor({
 
     if (copied) {
       setCopyStatus('✅ 已成功复制富文本！已通过微信 100% 格式内联认证，在公众号后台 Cmd/Ctrl + V 粘贴即可');
-      onShowToast?.('🎉 微信富文本复制成功！本地图片已转为无损Base64，外链已规范化，在公众号后台直接 Cmd/Ctrl + V 粘贴即可。');
+      const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const hasLocalHostImg = processedHtml.includes('localhost:') || processedHtml.includes('127.0.0.1:');
+      if (isLocalHost && hasLocalHostImg) {
+        onShowToast?.('⚠️ 复制成功！但检测到当前在本地电脑(localhost)环境，微信云端爬虫无法访问您个人电脑中的图片。请在公网服务器环境使用或配置图床，微信方可自动抓取。', 6000);
+      } else {
+        onShowToast?.('🎉 微信富文本复制成功！图片已全部转化为合规公网地址，在公众号后台直接 Cmd/Ctrl + V 粘贴即可正常载入！');
+      }
     } else {
       onShowToast?.('复制失败，请尝试在预览区手动全选复制');
     }
@@ -678,7 +685,7 @@ export function WechatVisualEditor({
     onShowToast?.('⏳ 正在打包导出 HTML 并内嵌离线图片...', 2000);
     let preparedHtml = wechatHtml;
     try {
-      preparedHtml = await prepareWechatImages(wechatHtml);
+      preparedHtml = await prepareWechatImages(wechatHtml, { forExport: true });
     } catch (e) {
       console.warn('prepareWechatImages failed in export:', e);
     }
