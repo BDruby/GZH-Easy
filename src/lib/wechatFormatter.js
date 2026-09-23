@@ -180,23 +180,16 @@ function renderMacosTrafficLights(title = '', titleColor = '#0071e3', align = 'l
   }
 
   return `
-    <table style="border-collapse: collapse; border: none; ${marginStyle} padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
-      <tbody>
-        <tr style="border: none; background: transparent !important;">
-          <td style="border: none; padding: 0 8px 0 0; vertical-align: middle; line-height: 1; width: 39px;">
-            ${trafficLightsSvg}
-          </td>
-          <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
-            <span style="display: inline-block; font-size: 11px; font-weight: 700; color: ${titleColor}; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap !important; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;">${title}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <section style="${marginStyle} line-height: 1; text-align: ${align}; box-sizing: border-box;">
+      <span style="display: inline-block; vertical-align: middle; line-height: 1; margin-right: 8px;">
+        ${trafficLightsSvg}
+      </span><span style="display: inline-block; vertical-align: middle; line-height: 1; font-size: 11px; font-weight: 700; color: ${titleColor}; letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap !important; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', sans-serif;">${title}</span>
+    </section>
   `.trim();
 }
 
 /**
- * 微信公众号专用：macOS 单色状态圆点徽章头部（内联 SVG + Table 锁死，绝不分散或被微信过滤）
+ * 微信公众号专用：macOS 单色状态圆点徽章头部（内联 SVG + inline-block 紧凑锁死，绝不分散或被微信拉伸）
  */
 function renderMacosSingleDotHeader(dotColor, title, titleColor) {
   const dotSvg = `
@@ -205,18 +198,11 @@ function renderMacosSingleDotHeader(dotColor, title, titleColor) {
     </svg>
   `.trim();
   return `
-    <table style="border-collapse: collapse; border: none; margin: 0 0 10px 0; padding: 0; background: transparent !important; width: auto !important; table-layout: auto;">
-      <tbody>
-        <tr style="border: none; background: transparent !important;">
-          <td style="border: none; padding: 0 6px 0 0; vertical-align: middle; line-height: 1; width: 10px;">
-            ${dotSvg}
-          </td>
-          <td style="border: none; padding: 0; vertical-align: middle; line-height: 1; white-space: nowrap !important;">
-            <span style="display: inline-block; color: ${titleColor}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; font-family: Menlo, Monaco, monospace; text-transform: uppercase; white-space: nowrap !important;">${title}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <section style="margin: 0 0 10px 0; line-height: 1; text-align: left; box-sizing: border-box;">
+      <span style="display: inline-block; vertical-align: middle; line-height: 1; margin-right: 6px;">
+        ${dotSvg}
+      </span><span style="display: inline-block; vertical-align: middle; line-height: 1; color: ${titleColor}; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; font-family: Menlo, Monaco, monospace; text-transform: uppercase; white-space: nowrap !important;">${title}</span>
+    </section>
   `.trim();
 }
 
@@ -1734,7 +1720,7 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 6. 二级标题 (H2) - 稳定微晶卡片风格（外层显式 text-align:left 绝不漂移，内嵌 macOS 专属三色点 SVG）
+    // 6. 二级标题 (H2) - 稳定微晶卡片风格（外层显式 text-align:left，行内块锁死间距，绝不被微信拉伸）
     if (trimmed.startsWith('## ')) {
       flushList();
       flushTable();
@@ -1742,46 +1728,16 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       if (isClaude) {
         htmlParts.push(`
           <section data-ignore-width="true" style="margin:34px 0 18px 0;text-align:left;box-sizing:border-box;">
-            <section style="display:inline-block;padding:7px 16px 7px 12px;background-color:#faf9f5;border-radius:10px;border:1px solid rgba(217,119,87,0.25);box-sizing:border-box;">
-              <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
-                <tbody>
-                  <tr style="border:none;background:transparent !important;">
-                    <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:16px;">
-                      ${renderClaudeSparkleSvg('#d97757', 14)}
-                    </td>
-                    <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
-                      <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:700;color:#262320;letter-spacing:0.5px;line-height:1.4;font-family:'Newsreader',Georgia,'Songti SC','Source Han Serif SC',serif;">
-                        ${formatInline(text, primary)}
-                      </h2>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <section style="display:inline-block;padding:6px 15px 6px 12px;background-color:#faf9f5;border-radius:10px;border:1px solid rgba(217,119,87,0.25);box-sizing:border-box;vertical-align:middle;line-height:1.4;">
+              <span style="display:inline-block;vertical-align:middle;line-height:1;margin-right:8px;">${renderClaudeSparkleSvg('#d97757', 14)}</span><span style="display:inline-block;vertical-align:middle;font-size:${fontSize + 3}px;font-weight:700;color:#262320;letter-spacing:0.5px;line-height:1.4;font-family:'Newsreader',Georgia,'Songti SC','Source Han Serif SC',serif;">${formatInline(text, primary)}</span>
             </section>
           </section>
         `);
       } else if (isMacosGlass) {
         htmlParts.push(`
           <section data-ignore-width="true" style="margin:34px 0 18px 0;text-align:left;box-sizing:border-box;">
-            <section style="display:inline-block;padding:7px 16px 7px 12px;background-color:#f4f8ff;border-radius:14px;border:1px solid rgba(0,113,227,0.2);box-sizing:border-box; -webkit-font-smoothing: antialiased;">
-              <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
-                <tbody>
-                  <tr style="border:none;background:transparent !important;">
-                    <td style="border:none;padding:0 10px 0 0;vertical-align:middle;line-height:1;width:28px;">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="8" viewBox="0 0 28 8" style="display:block;width:28px;height:8px;">
-                        <circle cx="4" cy="4" r="3.5" fill="#ff5f56" />
-                        <circle cx="14" cy="4" r="3.5" fill="#ffbd2e" />
-                        <circle cx="24" cy="4" r="3.5" fill="#27c93f" />
-                      </svg>
-                    </td>
-                    <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
-                      <h2 style="margin:0;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
-                        ${formatInline(text, primary)}
-                      </h2>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <section style="display:inline-block;padding:6px 15px 6px 12px;background-color:#f4f8ff;border-radius:14px;border:1px solid rgba(0,113,227,0.2);box-sizing:border-box;-webkit-font-smoothing:antialiased;vertical-align:middle;line-height:1.4;">
+              <span style="display:inline-block;vertical-align:middle;line-height:1;margin-right:9px;"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="8" viewBox="0 0 28 8" style="display:block;width:28px;height:8px;"><circle cx="4" cy="4" r="3.5" fill="#ff5f56" /><circle cx="14" cy="4" r="3.5" fill="#ffbd2e" /><circle cx="24" cy="4" r="3.5" fill="#27c93f" /></svg></span><span style="display:inline-block;vertical-align:middle;font-size:${fontSize + 3}px;font-weight:800;color:#1d1d1f;letter-spacing:0.4px;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
             </section>
           </section>
         `);
@@ -1797,49 +1753,21 @@ export function formatToWechatHtml(markdown = '', options = {}) {
       continue;
     }
 
-    // 7. 三级标题 (H3) - 矢量 SVG 小圆点保护与防漂移
+    // 7. 三级标题 (H3) - 矢量 SVG 图标紧凑行内锁死，防止微信拉伸
     if (trimmed.startsWith('### ')) {
       flushList();
       flushTable();
       const text = trimmed.slice(4);
       if (isClaude) {
         htmlParts.push(`
-          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box;">
-            <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
-              <tbody>
-                <tr style="border:none;background:transparent !important;">
-                  <td style="border:none;padding:0 6px 0 0;vertical-align:middle;line-height:1;width:12px;">
-                    ${renderClaudeSparkleSvg('#d97757', 11)}
-                  </td>
-                  <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
-                    <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#d97757;line-height:1.4;font-family:'Newsreader',Georgia,serif;">
-                      ${formatInline(text, primary)}
-                    </h3>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box;line-height:1.4;">
+            <span style="display:inline-block;vertical-align:middle;line-height:1;margin-right:7px;">${renderClaudeSparkleSvg('#d97757', 11)}</span><span style="display:inline-block;vertical-align:middle;font-size:${fontSize + 1}px;font-weight:700;color:#d97757;line-height:1.4;font-family:'Newsreader',Georgia,serif;">${formatInline(text, primary)}</span>
           </section>
         `);
       } else if (isMacosGlass) {
         htmlParts.push(`
-          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box; -webkit-font-smoothing: antialiased;">
-            <table style="border-collapse:collapse;border:none;margin:0;padding:0;background:transparent !important;width:auto !important;">
-              <tbody>
-                <tr style="border:none;background:transparent !important;">
-                  <td style="border:none;padding:0 8px 0 0;vertical-align:middle;line-height:1;width:8px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" style="display:block;width:8px;height:8px;">
-                      <circle cx="4" cy="4" r="3.5" fill="#0071e3" />
-                    </svg>
-                  </td>
-                  <td style="border:none;padding:0;vertical-align:middle;line-height:1.4;">
-                    <h3 style="margin:0;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">
-                      ${formatInline(text, primary)}
-                    </h3>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <section data-ignore-width="true" style="margin:24px 0 12px 0;text-align:left;box-sizing:border-box;-webkit-font-smoothing:antialiased;line-height:1.4;">
+            <span style="display:inline-block;vertical-align:middle;line-height:1;margin-right:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" style="display:block;width:8px;height:8px;"><circle cx="4" cy="4" r="3.5" fill="#0071e3" /></svg></span><span style="display:inline-block;vertical-align:middle;font-size:${fontSize + 1}px;font-weight:700;color:#0071e3;line-height:1.4;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC',sans-serif;">${formatInline(text, primary)}</span>
           </section>
         `);
       } else {

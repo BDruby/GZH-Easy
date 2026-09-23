@@ -1317,19 +1317,38 @@ export function WechatVisualEditor({
                     {stagedImages.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm('确定要清空图片暂存池记录吗？')) {
+                        onClick={async () => {
+                          if (window.confirm('确定要清空图片暂存池吗？\n（将同时清理释放服务器磁盘上的临时图片存储，保障服务器硬盘空间）')) {
                             setStagedImages([]);
-                            onShowToast?.('图片暂存池已清空');
+                            try {
+                              const r = await fetch('/api/upload/clean', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ cleanAll: true })
+                              });
+                              const data = await r.json().catch(() => ({}));
+                              if (data?.ok) {
+                                onShowToast?.(`🎉 暂存池已清空，成功释放服务器 ${data.freedMB || '0'} MB 磁盘空间！`);
+                              } else {
+                                onShowToast?.('图片暂存池已清空');
+                              }
+                            } catch {
+                              onShowToast?.('图片暂存池已清空');
+                            }
                           }
                         }}
-                        className="text-[11px] text-slate-500 hover:text-rose-400"
-                        title="清空暂存记录"
+                        className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors"
+                        title="清空暂存记录并释放服务器磁盘空间"
                       >
-                        清空
+                        清空释放
                       </button>
                     )}
                   </div>
+                </div>
+
+                {/* 微信自动转存与磁盘说明提示 */}
+                <div className="px-3 py-1.5 bg-slate-900/60 rounded text-[10px] text-slate-400 leading-relaxed border border-slate-800/60">
+                  💡 <span className="text-slate-300 font-medium">存储机制说明：</span>图片粘贴至公众号后台时，微信会自动转存至腾讯官方 CDN 永久托管，不再依赖本服务器；系统会自动清理 7 天前中转缓存，您也可随时点击上方【清空释放】主动腾出磁盘。
                 </div>
 
                 {/* 图片列表 */}

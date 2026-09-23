@@ -710,6 +710,82 @@ async function apiUpload(req, res, body) {
   }
 }
 
+// ---------------- 图片自动清理与空间释放机制 ----------------
+function cleanOldUploads(maxDays = 7) {
+  const uploadsDir = path.join(PUBLIC, 'uploads');
+  if (!fs.existsSync(uploadsDir)) return { deletedCount: 0, freedBytes: 0 };
+
+  const now = Date.now();
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+  let deletedCount = 0;
+  let freedBytes = 0;
+
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    for (const file of files) {
+      if (file.startsWith('.')) continue;
+      const filePath = path.join(uploadsDir, file);
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.isFile() && (now - stat.mtimeMs > maxAgeMs)) {
+          freedBytes += stat.size;
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.warn('[cleanOldUploads] 扫描 uploads 目录失败:', err.message);
+  }
+
+  if (deletedCount > 0) {
+    const freedMB = (freedBytes / (1024 * 1024)).toFixed(2);
+    console.log(`[cleanOldUploads] 自动清理完成: 删除了 ${deletedCount} 个超过 ${maxDays} 天的历史中转图片，释放了 ${freedMB} MB 磁盘空间`);
+  }
+  return { deletedCount, freedBytes };
+}
+
+async function apiCleanUploads(req, res, body = {}) {
+  const uploadsDir = path.join(PUBLIC, 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    return sendJson(res, 200, { ok: true, deletedCount: 0, freedBytes: 0, freedMB: '0.00' });
+  }
+
+  const cleanAll = body.cleanAll === true;
+  const maxDays = cleanAll ? 0 : (Number(body.maxDays) || 7);
+  const now = Date.now();
+  const maxAgeMs = maxDays * 24 * 60 * 60 * 1000;
+
+  let deletedCount = 0;
+  let freedBytes = 0;
+
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    for (const file of files) {
+      if (file.startsWith('.')) continue;
+      const filePath = path.join(uploadsDir, file);
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.isFile() && (cleanAll || now - stat.mtimeMs > maxAgeMs)) {
+          freedBytes += stat.size;
+          fs.unlinkSync(filePath);
+          deletedCount++;
+        }
+      } catch (e) {}
+    }
+    const freedMB = (freedBytes / (1024 * 1024)).toFixed(2);
+    return sendJson(res, 200, {
+      ok: true,
+      deletedCount,
+      freedBytes,
+      freedMB,
+      message: `成功清理 ${deletedCount} 个暂存图片文件，释放 ${freedMB} MB 磁盘空间`
+    });
+  } catch (err) {
+    return sendJson(res, 500, { ok: false, error: `清理失败: ${err.message}` });
+  }
+}
+
 // ---------------- API：全网实时爆款热点聚合 ----------------
 async function apiTrends(req, res, url) {
   const source = url.searchParams.get('source') || 'all';
@@ -760,6 +836,7 @@ const server = http.createServer(async (req, res) => {
       return serveStatic(req, res);
     }
     if (req.method === 'POST' && url.pathname === '/api/upload') return await apiUpload(req, res, await readBody(req));
+    if (req.method === 'POST' && url.pathname === '/api/upload/clean') return await apiCleanUploads(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/test-connection') return await apiTestConnection(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/titles') return await apiTitles(req, res, await readBody(req));
     if (req.method === 'POST' && url.pathname === '/api/angles') return await apiAngles(req, res, await readBody(req));
@@ -780,4 +857,15 @@ server.listen(config.port, () => {
   console.log(`  模型:      ${config.model}   |   Base URL: ${config.baseUrl}`);
   console.log(`  API Key:   ${config.apiKey ? '已配置(config.json/环境变量)' : '未配置（请在网页设置中输入）'}`);
   console.log('');
+
+  // 启动即进行一次历史临时图片自动清理（清理 7 天以上过期中转图片，守护服务器磁盘空间）
+  try {
+    cleanOldUploads(7);
+    // 启动 24 小时周期轮巡清理守护任务
+    setInterval(() => {
+      cleanOldUploads(7);
+    }, 24 * 60 * 60 * 1000);
+  } catch (e) {
+    console.warn('[cleanOldUploads] 定时任务初始化异常（忽略）:', e.message);
+  }
 });
